@@ -1,81 +1,84 @@
 // netlify/functions/yalidine-proxy.js
 
 exports.handler = async (event, context) => {
-  // 1. جلب المفاتيح السرية من Netlify
   const { YALIDINE_API_ID, YALIDINE_API_TOKEN } = process.env;
 
-  // --- بداية التعديل ---
-  // 2. استخراج المسار المطلوب والتأكد من عدم وجود / في البداية
-  let path = event.queryStringParameters.path || '';
-  if (path.startsWith('/')) {
-      path = path.substring(1); // إزالة الـ / الأولى إذا وجدت
+  // --- بداية التعديل: استخراج المسار والبارامترات بطريقة مختلفة ---
+
+  // 1. احصل على المسار الأصلي المطلوب من event.path (يزيل /yalidine-api/ منه)
+  // مثال: إذا كان الطلب الأصلي /yalidine-api/wilayas?page_size=60
+  // event.path قد يكون /.netlify/functions/yalidine-proxy (هذا غير مفيد)
+  // لكن event.rawUrl أو headers يمكن أن يساعدا. الطريقة الأسهل هي الاعتماد على المسار الذي تم إرساله.
+  // سنفترض أن Netlify يمرر المسار الأصلي بطريقة ما, أو نعتمد على هيكل الطلب
+  // الطريقة الأكثر اعتمادية: استخراج المسار من event.path ولكن بإزالة الجزء الثابت
+
+  let requestedPath = event.path.replace('/.netlify/functions/yalidine-proxy', ''); // قد لا يعمل دائمًا
+
+  // طريقة بديلة وأكثر أمانًا تعتمد على هيكل URL الأصلي إذا كان متاحًا
+  // Netlify يضيف header اسمه x-netlify-original-pathname
+  const originalPathHeader = event.headers['x-netlify-original-pathname'];
+  let path = '';
+  if (originalPathHeader && originalPathHeader.startsWith('/yalidine-api/')) {
+       path = originalPathHeader.substring('/yalidine-api/'.length); // استخراج ما بعد /yalidine-api/
   }
+
+  // إزالة الشرطة المائلة الأولى إن وجدت (احتياطي)
+  if (path.startsWith('/')) {
+      path = path.substring(1);
+  }
+  console.log("Extracted Path from header:", path); // طباعة المسار المستخرج
+
+  // 2. احصل على الـ query string الأصلي
+  const queryString = event.rawQuery || ''; // Use rawQuery as it contains the original query string
+  console.log("Original Query String:", queryString); // طباعة البارامترات
+
   // --- نهاية التعديل ---
 
-  // 3. إزالة المسار من البارامترات لإبقاء البارامترات الأخرى (مثل page_size)
-  const params = new URLSearchParams(event.queryStringParameters);
-  params.delete('path');
-  const queryString = params.toString();
-
-  // 4. بناء الرابط الحقيقي لـ Yalidine
+  // 3. بناء الرابط الحقيقي لـ Yalidine
   const YALIDINE_URL = `https://api.yalidine.app/v1/${path}${queryString ? `?${queryString}` : ''}`;
-  console.log("Constructed Yalidine URL:", YALIDINE_URL); // طباعة الرابط للتحقق في سجلات Netlify
+  console.log("Constructed Yalidine URL:", YALIDINE_URL);
 
-  // 5. إعداد خيارات الطلب
+  // 4. إعداد خيارات الطلب (تبقى كما هي)
   const fetchOptions = {
     method: event.httpMethod,
     headers: {
       "Content-Type": "application/json",
       "Accept": "application/json",
-      "X-API-ID": YALIDINE_API_ID,      // <-- المفتاح السري يُستخدم هنا بأمان
-      "X-API-TOKEN": YALIDINE_API_TOKEN, // <-- المفتاح السري يُستخدم هنا بأمان
+      "X-API-ID": YALIDINE_API_ID,
+      "X-API-TOKEN": YALIDINE_API_TOKEN,
     },
   };
-
-  // إضافة الجسم (body) فقط للطلبات التي ليست GET أو HEAD
   if (event.httpMethod !== 'GET' && event.httpMethod !== 'HEAD') {
     fetchOptions.body = event.body;
   }
 
+  // 5. إرسال الطلب ومعالجة الرد (تبقى كما هي)
   try {
-    // 6. إرسال الطلب الآمن من الخادم باستخدام الخيارات المحدثة
-    const response = await fetch(YALIDINE_URL, fetchOptions); // استخدام الخيارات المعدلة
-
-    // 7. قراءة الرد من Yalidine
-    // Check if response body exists before parsing JSON
+    const response = await fetch(YALIDINE_URL, fetchOptions);
     let data;
     const contentType = response.headers.get("content-type");
     if (contentType && contentType.indexOf("application/json") !== -1) {
         data = await response.json();
     } else {
-        // Handle non-JSON responses if necessary, or assume error if JSON expected
         data = { error: { message: `Unexpected response type: ${contentType}` } };
-        // If the response was actually okay but not JSON, adjust logic here
         if (!response.ok) {
            console.error("Yalidine API Error (Non-JSON):", response.status, response.statusText);
            return {
                statusCode: response.status,
-               body: JSON.stringify(data), // Send back structured error
+               body: JSON.stringify(data),
            };
         }
-        // If response is OK but not JSON (unlikely for Yalidine?), return it as is or handle appropriately
         console.warn("Yalidine API returned non-JSON response:", response.status);
-        // Maybe return plain text if applicable, or treat as success if status is 2xx
-        // For simplicity, we'll return the structured error for now if it wasn't OK.
-        // If it WAS ok, we let it pass through to the success return below, but data might be incomplete.
     }
 
-
-    // إذا كان الرد خطأ من Yalidine، أعد إرساله للمتصفح
     if (!response.ok) {
       console.error("Yalidine API Error:", data);
       return {
         statusCode: response.status,
-        body: JSON.stringify(data), // data might contain error details from Yalidine
+        body: JSON.stringify(data),
       };
     }
 
-    // 8. إرسال البيانات الناجحة إلى المتصفح
     return {
       statusCode: 200,
       body: JSON.stringify(data),

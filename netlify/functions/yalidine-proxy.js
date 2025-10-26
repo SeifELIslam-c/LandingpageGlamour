@@ -3,42 +3,39 @@
 exports.handler = async (event, context) => {
   const { YALIDINE_API_ID, YALIDINE_API_TOKEN } = process.env;
 
-  // --- بداية التعديل: استخراج المسار والبارامترات بطريقة مختلفة ---
+  // --- بداية التعديل: استخراج المسار من event.path ---
 
-  // 1. احصل على المسار الأصلي المطلوب من event.path (يزيل /yalidine-api/ منه)
-  // مثال: إذا كان الطلب الأصلي /yalidine-api/wilayas?page_size=60
-  // event.path قد يكون /.netlify/functions/yalidine-proxy (هذا غير مفيد)
-  // لكن event.rawUrl أو headers يمكن أن يساعدا. الطريقة الأسهل هي الاعتماد على المسار الذي تم إرساله.
-  // سنفترض أن Netlify يمرر المسار الأصلي بطريقة ما, أو نعتمد على هيكل الطلب
-  // الطريقة الأكثر اعتمادية: استخراج المسار من event.path ولكن بإزالة الجزء الثابت
+  // 1. احصل على المسار الكامل للطلب كما تراه الدالة
+  const functionPath = event.path; // e.g., /.netlify/functions/yalidine-proxy/wilayas
+  console.log("Function Path:", functionPath);
 
-  let requestedPath = event.path.replace('/.netlify/functions/yalidine-proxy', ''); // قد لا يعمل دائمًا
-
-  // طريقة بديلة وأكثر أمانًا تعتمد على هيكل URL الأصلي إذا كان متاحًا
-  // Netlify يضيف header اسمه x-netlify-original-pathname
-  const originalPathHeader = event.headers['x-netlify-original-pathname'];
+  // 2. استخرج الجزء الذي يأتي *بعد* اسم الدالة
+  const functionBasePath = '/.netlify/functions/yalidine-proxy';
   let path = '';
-  if (originalPathHeader && originalPathHeader.startsWith('/yalidine-api/')) {
-       path = originalPathHeader.substring('/yalidine-api/'.length); // استخراج ما بعد /yalidine-api/
+  if (functionPath.startsWith(functionBasePath + '/')) {
+      path = functionPath.substring(functionBasePath.length + 1); // Get the part after the function name + slash
+  } else if (functionPath === functionBasePath) {
+      // Handle cases where no path is provided after the function name (might be an error or root request)
+      path = ''; // Or handle as appropriate, maybe default path?
   }
+  console.log("Extracted Path from event.path:", path); // Should be 'wilayas'
 
-  // إزالة الشرطة المائلة الأولى إن وجدت (احتياطي)
+  // إزالة الشرطة المائلة الأولى إن وجدت (احتياطي إضافي)
   if (path.startsWith('/')) {
       path = path.substring(1);
   }
-  console.log("Extracted Path from header:", path); // طباعة المسار المستخرج
 
-  // 2. احصل على الـ query string الأصلي
-  const queryString = event.rawQuery || ''; // Use rawQuery as it contains the original query string
-  console.log("Original Query String:", queryString); // طباعة البارامترات
+  // 3. احصل على الـ query string الأصلي
+  const queryString = event.rawQuery || '';
+  console.log("Original Query String:", queryString);
 
   // --- نهاية التعديل ---
 
-  // 3. بناء الرابط الحقيقي لـ Yalidine
+  // 4. بناء الرابط الحقيقي لـ Yalidine
   const YALIDINE_URL = `https://api.yalidine.app/v1/${path}${queryString ? `?${queryString}` : ''}`;
-  console.log("Constructed Yalidine URL:", YALIDINE_URL);
+  console.log("Constructed Yalidine URL:", YALIDINE_URL); // تحقق من الرابط النهائي
 
-  // 4. إعداد خيارات الطلب (تبقى كما هي)
+  // 5. إعداد خيارات الطلب (تبقى كما هي)
   const fetchOptions = {
     method: event.httpMethod,
     headers: {
@@ -52,7 +49,7 @@ exports.handler = async (event, context) => {
     fetchOptions.body = event.body;
   }
 
-  // 5. إرسال الطلب ومعالجة الرد (تبقى كما هي)
+  // 6. إرسال الطلب ومعالجة الرد (تبقى كما هي)
   try {
     const response = await fetch(YALIDINE_URL, fetchOptions);
     let data;
@@ -63,32 +60,20 @@ exports.handler = async (event, context) => {
         data = { error: { message: `Unexpected response type: ${contentType}` } };
         if (!response.ok) {
            console.error("Yalidine API Error (Non-JSON):", response.status, response.statusText);
-           return {
-               statusCode: response.status,
-               body: JSON.stringify(data),
-           };
+           return { statusCode: response.status, body: JSON.stringify(data) };
         }
         console.warn("Yalidine API returned non-JSON response:", response.status);
     }
 
     if (!response.ok) {
       console.error("Yalidine API Error:", data);
-      return {
-        statusCode: response.status,
-        body: JSON.stringify(data),
-      };
+      return { statusCode: response.status, body: JSON.stringify(data) };
     }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(data),
-    };
+    return { statusCode: 200, body: JSON.stringify(data) };
 
   } catch (error) {
     console.error("Proxy Function Error:", error);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ message: "Proxy Function Error", error: error.message }),
-    };
+    return { statusCode: 500, body: JSON.stringify({ message: "Proxy Function Error", error: error.message }) };
   }
 };

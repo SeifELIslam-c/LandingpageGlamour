@@ -160,7 +160,7 @@
         .image-preview-item:hover .remove-image-btn {
             display: block;
         }
-
+        
         /* تحسين عرض كرت المنتج */
         .product-card-image-container {
             aspect-ratio: 1 / 1; /* نسبة عرض إلى ارتفاع مربعة */
@@ -401,129 +401,121 @@
     <!-- ================== بداية كود JavaScript ================== -->
     <!-- ====================================================== -->
 
-    <!-- Firebase SDK - سيتم استبدال هذا بالإعدادات من بيئة العمل -->
-    <!-- <script type="module">
-        // Import the functions you need from the SDKs you need
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
-
-        // Your web app's Firebase configuration
-        // !! هام: سيتم استخدام __firebase_config بدلاً من هذا !!
-        const firebaseConfig = {
-           // ... (بيانات الإعداد الخاصة بك)
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        window._firebaseApp = app; // Make it globally accessible for the main script
-    </script> -->
+    <!-- 
+        Firebase SDK - سيتم استبدال هذا بالإعدادات من بيئة العمل 
+        لا حاجة لهذا الآن، سنقوم بالتعريف داخل السكربت الرئيسي
+    -->
 
     <!-- السكربت الرئيسي للتطبيق -->
     <script type="module" defer>
         // استيراد دوال Firebase Firestore و Auth
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
         import { getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, writeBatch, serverTimestamp, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
         import { enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"; // For offline persistence
 
         // ==========================================
-        // إعداد Firebase
+        // 1. إعدادات Firebase (ثابتة في الكود)
+        // ==========================================
+        // هذا هو الكود الذي أرسلته لي، تم تثبيته هنا بدلاً من __firebase_config
+        const firebaseConfig = {
+          apiKey: "AIzaSyCRcPKUHHGGzw13IHAxKJGvwhWsi_4KOl8",
+          authDomain: "glamour-boutique.firebaseapp.com",
+          projectId: "glamour-boutique",
+          storageBucket: "glamour-boutique.firebasestorage.app",
+          messagingSenderId: "386974872429",
+          appId: "1:386974872429:web:8d155eaaefb868171a2064"
+        };
+        // ==========================================
+        
+        // ==========================================
+        // 2. تعريف المتغيرات العامة
         // ==========================================
         let app, db, auth, userId = null;
         let productsUnsubscribe = null; // لإلغاء الاستماع للمنتجات
         let ordersUnsubscribe = null; // لإلغاء الاستماع للطلبات
 
+        // سيتم تعريفها داخل initializeFirebase بعد تهيئة db
+        let productsCollection;
+        let ordersCollection;
+
+        // ==========================================
+        // 3. دالة تهيئة Firebase
+        // ==========================================
         async function initializeFirebase() {
-    try {
-        // استخدام الإعدادات والتكن من بيئة العمل
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+            try {
+                // لم نعد بحاجة للتحقق من __firebase_config
+                // if (!firebaseConfig) { ... } // This block is removed
 
-        if (!firebaseConfig) {
-            console.error("Firebase config not found!");
-            showToast("خطأ في إعداد قاعدة البيانات. لا يمكن تحميل التطبيق.", "error", 10000);
-            // يمكنك عرض رسالة خطأ للمستخدم هنا
-            document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: لم يتم العثور على إعدادات قاعدة البيانات.</p>';
-            return false;
-        }
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
 
-        app = initializeApp(firebaseConfig);
-        db = getFirestore(app);
-        auth = getAuth(app);
+                // *** هذا هو التعديل الصحيح: تعريف المسارات هنا الآن بعد تهيئة db ***
+                productsCollection = collection(db, 'products');
+                ordersCollection = collection(db, 'orders');
+                // *** نهاية التعديل ***
 
-        // *** هذا هو التعديل الصحيح: تعريف المسارات هنا الآن بعد تهيئة db ***
-        productsCollection = collection(db, 'products');
-        ordersCollection = collection(db, 'orders');
-        // *** نهاية التعديل ***
-
-        // تفعيل التخزين المحلي (Offline Persistence) - اختياري لكن مفيد
-        try {
-            await enableIndexedDbPersistence(db, { cacheSizeBytes: CACHE_SIZE_UNLIMITED });
-            console.log("Firebase offline persistence enabled.");
-        } catch (err) {
-            if (err.code == 'failed-precondition') {
-                console.warn("Multiple tabs open, persistence can only be enabled in one tab at a a time.");
-            } else if (err.code == 'unimplemented') {
-                console.warn("The current browser does not support all of the features required to enable persistence.");
-            } else {
-                console.error("Error enabling offline persistence:", err);
-            }
-        }
-
-
-        // محاولة تسجيل الدخول بالتكن أو كمجهول
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                // المستخدم مسجل دخوله (سواء بتكن أو مجهول)
-                userId = user.uid;
-                console.log("User is signed in:", userId);
-                if (user.isAnonymous) {
-                    console.log("User is anonymous.");
-                } else {
-                    console.log("User signed in with custom token.");
-                }
-                // الآن بعد التأكد من تسجيل الدخول، ابدأ بالاستماع للبيانات
-                setupFirestoreListeners();
-                initializeAppUI(); // تهيئة واجهة المستخدم والراوتر
-            } else {
-                // لا يوجد مستخدم، حاول تسجيل الدخول
-                console.log("No user signed in, attempting sign in...");
+                // تفعيل التخزين المحلي (Offline Persistence) - اختياري لكن مفيد
                 try {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
-                        console.log("Signed in with custom token.");
+                    await enableIndexedDbPersistence(db, { cacheSizeBytes: CACHE_SIZE_UNLIMITED });
+                    console.log("Firebase offline persistence enabled.");
+                } catch (err) {
+                    if (err.code == 'failed-precondition') {
+                        console.warn("Multiple tabs open, persistence can only be enabled in one tab at a a time.");
+                    } else if (err.code == 'unimplemented') {
+                        console.warn("The current browser does not support all of the features required to enable persistence.");
                     } else {
-                        await signInAnonymously(auth);
-                        console.log("Signed in anonymously.");
+                        console.error("Error enabling offline persistence:", err);
                     }
-                    // onAuthStateChanged سيُستدعى مرة أخرى بعد نجاح تسجيل الدخول
-                } catch (error) {
-                    console.error("Error signing in:", error);
-                    showToast("خطأ في الاتصال بقاعدة البيانات.", "error", 10000);
-                    document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: فشل الاتصال بقاعدة البيانات.</p>';
                 }
+
+                // محاولة تسجيل الدخول (كمجهول فقط، لأن __initial_auth_token لا يوجد في Netlify)
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        // المستخدم مسجل دخوله
+                        userId = user.uid;
+                        console.log("User is signed in:", userId, "Anonymous:", user.isAnonymous);
+                        
+                        // الآن بعد التأكد من تسجيل الدخول، ابدأ بالاستماع للبيانات
+                        setupFirestoreListeners();
+                        // وقم بتهيئة واجهة المستخدم والراوتر
+                        initializeAppUI(); 
+                    } else {
+                        // لا يوجد مستخدم، حاول تسجيل الدخول كمجهول
+                        console.log("No user signed in, attempting anonymous sign in...");
+                        try {
+                            // تم حذف التحقق من __initial_auth_token
+                            await signInAnonymously(auth);
+                            console.log("Signed in anonymously.");
+                            // onAuthStateChanged سيُستدعى مرة أخرى بعد نجاح تسجيل الدخول
+                        } catch (error) {
+                            console.error("Error signing in anonymously:", error);
+                            showToast("خطأ في الاتصال بقاعدة البيانات.", "error", 10000);
+                            document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: فشل الاتصال بقاعدة البيانات.</p>';
+                        }
+                    }
+                });
+
+                return true;
+
+            } catch (error) {
+                console.error("Firebase Initialization Error:", error);
+                showToast("فشل تهيئة قاعدة البيانات.", "error", 10000);
+                document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: فشل تهيئة قاعدة البيانات.</p>';
+                return false;
             }
-        });
-
-        return true;
-
-    } catch (error) {
-        console.error("Firebase Initialization Error:", error);
-        showToast("فشل تهيئة قاعدة البيانات.", "error", 10000);
-        document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: فشل تهيئة قاعدة البيانات.</p>';
-        return false;
-    }
-}
+        }
 
 
         // ==========================================
-        // النظام الأساسي: التخزين، الحالة، والراوتر
+        // 4. النظام الأساسي: التخزين، الحالة، والراوتر
         // ==========================================
 
-        // 1. كلمة سر الأدمن (غيّرها أو انقلها لـ environment variable لاحقاً!)
+        // 1. كلمة سر الأدمن
         const ADMIN_PASSWORD = 'admin123';
 
-        // 2. محاكاة قاعدة البيانات (Database) باستخدام localStorage للسلة والإعدادات المؤقتة فقط
+        // 2. قاعدة بيانات localStorage (للسلة والإعدادات المؤقتة)
         const localDb = {
             get: (key, defaultValue = null) => {
                 try {
@@ -543,35 +535,31 @@
             }
         };
 
-        // 3. الحالة العامة للتطبيق (In-Memory State - ستُملأ من Firestore)
+        // 3. الحالة العامة للتطبيق
         const state = {
             products: [], // ستُملأ من Firestore
             orders: [], // ستُملأ من Firestore
-            cart: localDb.get('cart', []), // السلة تبقى محلية مؤقتاً
-            yalidineSettings: {}, // لم تعد تُستخدم للمفاتيح، لكن قد تُستخدم لإعدادات أخرى لاحقاً
-            lastFetched: { // لتخزين وقت آخر جلب لبيانات Yalidine
+            cart: localDb.get('cart', []), // السلة تبقى محلية
+            yalidineSettings: {}, // لم تعد مستخدمة للمفاتيح
+            lastFetched: { 
                 wilayas: 0,
-                communes: {}, // wilayaId: timestamp
-                fees: {},    // wilayaId: timestamp
-                centers: {}    // wilayaId: timestamp
+                communes: {}, 
+                fees: {},    
+                centers: {}   
             },
-            cache: { // لتخزين بيانات Yalidine مؤقتاً
-                 wilayas: localDb.get('yalidine_wilayas_cache'),
-                 communes: localDb.get('yalidine_communes_cache', {}),
-                 fees: localDb.get('yalidine_fees_cache', {}),
-                 centers: localDb.get('yalidine_centers_cache', {})
+            cache: { 
+                wilayas: localDb.get('yalidine_wilayas_cache'),
+                communes: localDb.get('yalidine_communes_cache', {}),
+                fees: localDb.get('yalidine_fees_cache', {}),
+                centers: localDb.get('yalidine_centers_cache', {})
             },
-            appReady: false // لتتبع جاهزية التطبيق بعد تحميل البيانات الأولية
+            appReady: false // لتتبع جاهزية التطبيق
         };
-        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 ساعة بالميلي ثانية
+        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 ساعة
 
-        // مسارات Firestore (استخدم مساراً بسيطاً الآن، يمكن تغييره لاحقاً)
-        let productsCollection;
-        let ordersCollection;
-
+        
         // 4. إعداد مستمعي Firestore (للتحديثات الحية)
         function setupFirestoreListeners() {
-            // إلغاء المستمعين القدامى إن وجدوا
             if (productsUnsubscribe) productsUnsubscribe();
             if (ordersUnsubscribe) ordersUnsubscribe();
 
@@ -580,21 +568,26 @@
                 console.log("Products updated from Firestore");
                 const productsFromDb = [];
                 snapshot.forEach((doc) => {
-                    productsFromDb.push({ ...doc.data(), id: doc.id }); // إضافة ID المستند
+                    productsFromDb.push({ ...doc.data(), id: doc.id }); 
                 });
                 state.products = productsFromDb;
-                // إعادة عرض الصفحة الحالية إذا كانت تعتمد على المنتجات
-                rerenderCurrentPageIfProductDependent();
-                state.appReady = true; // اعتبر التطبيق جاهزاً بعد أول تحميل للمنتجات
+                
+                if (!state.appReady) {
+                     // هذا هو أول تحميل للبيانات، شغل الراوتر الآن
+                     state.appReady = true; 
+                     router(); 
+                } else {
+                    // البيانات تحدثت، أعد عرض الصفحة الحالية إذا كانت تعتمد على المنتجات
+                    rerenderCurrentPageIfProductDependent();
+                }
             }, (error) => {
                 console.error("Error listening to products:", error);
                 showToast("خطأ في تحميل المنتجات.", "error");
-                state.appReady = true; // اعتبره جاهزاً حتى لو فشل، لعرض رسالة الخطأ
-                rerenderCurrentPageIfProductDependent(); // لعرض رسالة "لا يوجد منتجات"
+                state.appReady = true; // اعتبره جاهزاً حتى لو فشل
+                router(); // شغل الراوتر لعرض رسالة الخطأ
             });
 
-            // الاستماع للطلبات (فقط إذا كان المستخدم أدمن؟ أو للكل؟ لنفترض للكل مؤقتاً)
-            // ملاحظة: قد تحتاج لقواعد أمان لتحديد من يمكنه قراءة الطلبات
+            // الاستماع للطلبات
             ordersUnsubscribe = onSnapshot(ordersCollection, (snapshot) => {
                 console.log("Orders updated from Firestore");
                 const ordersFromDb = [];
@@ -602,48 +595,64 @@
                     ordersFromDb.push({ ...doc.data(), id: doc.id });
                 });
                 state.orders = ordersFromDb;
-                 // إعادة عرض الصفحة الحالية إذا كانت تعتمد على الطلبات (مثل صفحة طلبات الأدمن)
+                // إعادة عرض الصفحة الحالية إذا كانت تعتمد على الطلبات
                 rerenderCurrentPageIfOrderDependent();
             }, (error) => {
                 console.error("Error listening to orders:", error);
-                // لا تعرض رسالة خطأ للمستخدم العادي عن فشل تحميل الطلبات
-                // showToast("خطأ في تحميل الطلبات.", "error");
+                // لا تزعج المستخدم العادي بهذا الخطأ
             });
         }
 
-        // دالة لإعادة عرض الصفحة الحالية إذا كانت تحتاج لبيانات المنتجات المحدثة
+        // دالة لإعادة عرض الصفحة الحالية (تحسين السلاسة)
         function rerenderCurrentPageIfProductDependent() {
             const currentHash = window.location.hash || '#/';
-            if (currentHash === '#/' || currentHash.startsWith('#/product/') || currentHash === '#/admin/products' || currentHash.startsWith('#/admin/products/edit/') || currentHash === '#/admin/products/new' || currentHash === '#/cart' || currentHash === '#/checkout') {
+            const activePageId = document.querySelector('.page.active')?.id;
+
+            // أعد العرض فقط إذا كانت الصفحة الحالية هي إحدى هذه الصفحات
+            if (
+                (currentHash === '#/' && activePageId === 'page-shop') ||
+                (currentHash.startsWith('#/product/') && activePageId === 'page-product-detail') ||
+                (currentHash === '#/admin/products' && activePageId === 'page-admin-products') ||
+                (currentHash.startsWith('#/admin/products/edit/') && activePageId === 'page-admin-product-form')
+            ) {
                  router(); // استدعاء الراوتر سيعيد عرض الصفحة بالبيانات الجديدة
             }
-             // تحديث Loader أو رسالة عدم وجود منتجات في صفحة المتجر
-             const shopLoader = document.getElementById('shop-loader');
-             const noProductsMsg = document.getElementById('no-products-message');
-             if (shopLoader && noProductsMsg) {
-                  shopLoader.classList.add('hidden');
-                  const hasProducts = state.products.length > 0;
-                  noProductsMsg.classList.toggle('hidden', hasProducts);
-                  if (!hasProducts) {
-                       noProductsMsg.textContent = `لا توجد منتجات لعرضها حالياً. ${isAdmin() ? '<a href="#/admin/products/new" class="text-blue-600 font-medium hover:underline">أضف منتجاً</a>' : ''}`;
-                  }
-             }
+            
+            // تحديث خاص بصفحة المتجر (لإخفاء الـ loader)
+            const shopLoader = document.getElementById('shop-loader');
+            const noProductsMsg = document.getElementById('no-products-message');
+            if (shopLoader && noProductsMsg) {
+                 shopLoader.classList.add('hidden');
+                 const hasProducts = state.products.length > 0;
+                 noProductsMsg.classList.toggle('hidden', hasProducts);
+                 if (!hasProducts) {
+                     noProductsMsg.innerHTML = `لا توجد منتجات لعرضها حالياً. ${isAdmin() ? '<a href="#/admin/products/new" class="text-blue-600 font-medium hover:underline">أضف منتجاً</a>' : ''}`;
+                 }
+            }
         }
-         // دالة لإعادة عرض الصفحة الحالية إذا كانت تحتاج لبيانات الطلبات المحدثة
+         // دالة لإعادة عرض الصفحة الحالية (تحسين السلاسة)
         function rerenderCurrentPageIfOrderDependent() {
             const currentHash = window.location.hash || '#/';
-            if (currentHash === '#/admin/orders' || currentHash.startsWith('#/admin/orders/')) {
-                 router(); // استدعاء الراوتر سيعيد عرض الصفحة بالبيانات الجديدة
+            const activePageId = document.querySelector('.page.active')?.id;
+            
+            if (
+                (currentHash === '#/admin/orders' && activePageId === 'page-admin-orders') || 
+                (currentHash.startsWith('#/admin/orders/') && activePageId === 'page-admin-order-detail')
+            ) {
+                router(); 
             }
         }
 
 
         // 5. الراوتر (Router) لإدارة الصفحات
         const router = () => {
-             // لا تقم بتشغيل الراوتر قبل جاهزية التطبيق (تحميل البيانات الأولية)
+             // لا تقم بتشغيل الراوتر قبل جاهزية التطبيق، إلا لصفحة الأدمن
              if (!state.appReady && !(window.location.hash.startsWith('#/admin'))) {
-                  console.log("App not ready, router execution delayed.");
-                  return;
+                 console.log("App not ready, router execution delayed.");
+                 // تأكد من أن loader المتجر ظاهر إذا كنا في الصفحة الرئيسية
+                 const shopLoader = document.getElementById('shop-loader');
+                 if(shopLoader) shopLoader.classList.remove('hidden');
+                 return;
              }
 
             // إخفاء جميع الصفحات
@@ -687,8 +696,8 @@
                      // إزالة المستمع القديم إن وجد لمنع التكرار
                      const newLoginForm = loginForm?.cloneNode(true);
                      if(loginForm && newLoginForm) {
-                          loginForm.parentNode.replaceChild(newLoginForm, loginForm);
-                          newLoginForm.addEventListener('submit', handleAdminLogin);
+                         loginForm.parentNode.replaceChild(newLoginForm, loginForm);
+                         newLoginForm.addEventListener('submit', handleAdminLogin);
                      }
                 }, 0);
             } else if (hash === '#/admin/dashboard') {
@@ -722,9 +731,9 @@
             }
             /* // قسم الإعدادات لم يعد مستخدماً للمفاتيح
             else if (hash === '#/admin/settings') {
-                pageId = 'page-admin-settings';
-                if (!admin) { goTo('#/admin'); return; }
-                renderSettingsPage();
+                 pageId = 'page-admin-settings';
+                 if (!admin) { goTo('#/admin'); return; }
+                 renderSettingsPage();
             }
              */
              else {
@@ -755,7 +764,15 @@
         };
 
         // 6. وظائف مساعدة (Helpers)
-        const goTo = (hash) => window.location.hash = hash;
+        const goTo = (hash) => {
+             // استخدام pushState يغير الرابط بدون إعادة تحميل الصفحة 
+             // ولكن router الخاص بنا يعتمد على hashchange.
+             // الطريقة الأبسط هي تغيير الـ hash مباشرة.
+             window.location.hash = hash;
+             // إذا كان التطبيق لا يستجيب لـ hashchange مباشرة (بسبب السرعة)،
+             // يمكننا استدعاء الراوتر يدوياً أيضاً.
+             // router(); // لكن هذا قد يسبب استدعاء مزدوج، الأفضل الاعتماد على 'hashchange'
+        };
         const isAdmin = () => sessionStorage.getItem('isAdmin') === 'true';
 
         // عرض المودال
@@ -795,11 +812,15 @@
                  container.classList.add('hidden');
                  document.getElementById('modal-content').innerHTML = '<div class="loader mx-auto"></div>'; // Reset content
              }, 300); // Match transition duration
-        };
+         };
 
         // عرض رسالة (Toast)
         const showToast = (message, type = 'success', duration = 3000) => {
              const container = document.getElementById('toast-container');
+             if (!container) { // إضافة تحقق أمان
+                console.warn("Toast container not found!");
+                return;
+             }
              const toast = document.createElement('div');
              const bgColor = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : 'bg-blue-600');
              const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'x-circle' : 'info');
@@ -842,62 +863,62 @@
         };
 
         // دالة fetch مع معالجة الأخطاء الأساسية (لـ Yalidine Proxy)
-        // دالة fetch مع معالجة الأخطاء الأساسية (لـ Yalidine Proxy)
-         const apiFetch = async (endpoint, options = {}) => {
-             // المفاتيح السرية لم تعد تُرسل من هنا، بل من Netlify Function
-             const headers = {
-                 'Content-Type': 'application/json',
+        const apiFetch = async (endpoint, options = {}) => {
+            // المفاتيح السرية لم تعد تُرسل من هنا، بل من Netlify Function
+            const headers = {
+                'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                 ...options.headers,
-                 };
-
-               // استخدام بروكسي Netlify
-               const YALIDINE_BASE_URL = '/yalidine-api'; // هذا المسار سيوجه الطلب إلى الدالة netlify/functions/yalidine-proxy.js
-               const url = `${YALIDINE_BASE_URL}${endpoint}`; // استخدام المسار النسبي للبروكسي
-
-               try {
-                     console.log(`Fetching via Proxy: ${url} with params:`, options.params);
-                     const queryParams = new URLSearchParams(options.params || {}).toString();
-                     // تمرير البارامترات في الرابط للدالة (الدالة ستفصل المسار عن البارامترات)
-                     const fullUrl = queryParams ? `${url}?${queryParams}` : url;
-
-                     // *** بداية التعديل لحل مشكلة 400 Bad Request ***
-                     const fetchOptions = {
-                           method: options.method || 'GET',
-                           headers: headers,
-                     };
-
-                     // أضف الـ body فقط إذا كان موجوداً ولم يكن الطلب GET
-                     if (options.body && fetchOptions.method !== 'GET') {
-                           fetchOptions.body = JSON.stringify(options.body);
-                     }
-                     
-                     const response = await fetch(fullUrl, fetchOptions);
-                     // *** نهاية التعديل ***
-
-                     if (!response.ok) {
-                           let errorData;
-                           try {
-                              errorData = await response.json();
-                           } catch(e) {
-                               // Fallback if response is not JSON
-                               errorData = { message: `خطأ ${response.status}: ${response.statusText || 'فشل الاتصال بخادم الشحن'}` };
-                           }
-                           console.error('API Error Response (from browser fetch):', errorData, 'Status:', response.status);
-                           // استخدم رسالة الخطأ من البروكسي إن وجدت، أو رسالة عامة
-                           throw new Error(errorData.message || `خطأ ${response.status} عند الاتصال بخادم الشحن.`);
-                     }
-                     const data = await response.json();
-                     console.log('API Success Response (from browser fetch):', data);
-                     return data;
-
-               } catch (error) {
-                     console.error(`API Fetch Error (${url}):`, error);
-                     // لا تعرض رسالة toast هنا دائماً، قد يتم التعامل معها في مكان الاستدعاء
-                     // showToast(`خطأ في الاتصال بخادم الشحن: ${error.message}`, 'error');
-                     throw error; // أعد رمي الخطأ ليتم التعامل معه
-               }
+                ...options.headers,
             };
+
+            // استخدام بروكسي Netlify
+            const YALIDINE_BASE_URL = '/yalidine-api'; // هذا المسار سيوجه الطلب إلى الدالة netlify/functions/yalidine-proxy.js
+            const url = `${YALIDINE_BASE_URL}${endpoint}`; // استخدام المسار النسبي للبروكسي
+
+            try {
+                console.log(`Fetching via Proxy: ${url} with params:`, options.params);
+                const queryParams = new URLSearchParams(options.params || {}).toString();
+                // تمرير البارامترات في الرابط للدالة (الدالة ستفصل المسار عن البارامترات)
+                const fullUrl = queryParams ? `${url}?${queryParams}` : url;
+
+                // *** بداية التعديل لحل مشكلة 400 Bad Request ***
+                const fetchOptions = {
+                    method: options.method || 'GET',
+                    headers: headers,
+                };
+
+                // أضف الـ body فقط إذا كان موجوداً ولم يكن الطلب GET
+                if (options.body && fetchOptions.method !== 'GET') {
+                    fetchOptions.body = JSON.stringify(options.body);
+                }
+                
+                const response = await fetch(fullUrl, fetchOptions);
+                // *** نهاية التعديل ***
+
+
+                if (!response.ok) {
+                    let errorData;
+                    try {
+                        errorData = await response.json();
+                    } catch(e) {
+                         // Fallback if response is not JSON
+                         errorData = { message: `خطأ ${response.status}: ${response.statusText || 'فشل الاتصال بخادم الشحن'}` };
+                    }
+                    console.error('API Error Response (from browser fetch):', errorData, 'Status:', response.status);
+                    // استخدم رسالة الخطأ من البروكسي إن وجدت، أو رسالة عامة
+                    throw new Error(errorData.message || `خطأ ${response.status} عند الاتصال بخادم الشحن.`);
+                }
+                const data = await response.json();
+                console.log('API Success Response (from browser fetch):', data);
+                return data;
+
+            } catch (error) {
+                console.error(`API Fetch Error (${url}):`, error);
+                // لا تعرض رسالة toast هنا دائماً، قد يتم التعامل معها في مكان الاستدعاء
+                // showToast(`خطأ في الاتصال بخادم الشحن: ${error.message}`, 'error');
+                throw error; // أعد رمي الخطأ ليتم التعامل معه
+            }
+        };
 
 
         // دالة لجلب بيانات Yalidine مع التخزين المؤقت (Caching)
@@ -965,12 +986,12 @@
                       state.lastFetched[type] = now;
                   }
                    // Persist cache
-                  if (type === 'wilayas') localDb.set('yalidine_wilayas_cache', state.cache.wilayas);
-                  else if (type === 'communes') localDb.set('yalidine_communes_cache', state.cache.communes);
-                  else if (type === 'fees') localDb.set('yalidine_fees_cache', state.cache.fees);
-                  else if (type === 'centers') localDb.set('yalidine_centers_cache', state.cache.centers);
+                 if (type === 'wilayas') localDb.set('yalidine_wilayas_cache', state.cache.wilayas);
+                 else if (type === 'communes') localDb.set('yalidine_communes_cache', state.cache.communes);
+                 else if (type === 'fees') localDb.set('yalidine_fees_cache', state.cache.fees);
+                 else if (type === 'centers') localDb.set('yalidine_centers_cache', state.cache.centers);
 
-                  return data;
+                 return data;
 
 
              } catch (error) {
@@ -988,7 +1009,8 @@
         const initializeAppUI = () => {
             // إضافة مستمعين للأحداث العامة التي تحتاج للتشغيل مرة واحدة
             window.addEventListener('hashchange', router);
-            document.addEventListener('DOMContentLoaded', router); // استدعاء الراوتر عند تحميل DOM
+            // document.addEventListener('DOMContentLoaded', router); // استدعاء الراوتر عند تحميل DOM
+            // تم استدعاء الراوتر الأولي من داخل onAuthStateChanged بعد setupFirestoreListeners
 
             // مستمع عام للأحداث (Event Delegation)
             document.body.addEventListener('click', (e) => {
@@ -1001,24 +1023,18 @@
              // مستمع زر تسجيل الخروج
              const logoutBtn = document.getElementById('admin-logout-btn');
              if (logoutBtn) {
-                  // إزالة المستمع القديم إن وجد
-                  const newLogoutBtn = logoutBtn.cloneNode(true);
-                  logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
-                  newLogoutBtn.addEventListener('click', handleAdminLogout);
+                 // إزالة المستمع القديم إن وجد
+                 const newLogoutBtn = logoutBtn.cloneNode(true);
+                 logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+                 newLogoutBtn.addEventListener('click', handleAdminLogout);
              }
 
 
             // تحديث عدد السلة عند التحميل
             updateCartBadge();
 
-            // تنفيذ الراوتر لأول مرة بعد تهيئة UI الأساسية
-            if (!state.appReady) {
-                 // قد لا تكون البيانات جاهزة بعد، اعرض loader عام أو انتظر
-                 console.log("Initial data not ready yet, delaying first route...");
-                 // يمكن عرض loader رئيسي هنا إذا أردت
-            } else {
-                 router();
-            }
+            // تنفيذ الراوتر لأول مرة (يتم استدعاؤه الآن من onAuthStateChanged)
+            // router(); 
         };
 
         // ==========================================
@@ -1036,8 +1052,8 @@
                 goTo('#/admin/dashboard');
             } else {
                  if(errorEl) {
-                      errorEl.textContent = 'كلمة المرور غير صحيحة.';
-                      errorEl.classList.remove('hidden');
+                     errorEl.textContent = 'كلمة المرور غير صحيحة.';
+                     errorEl.classList.remove('hidden');
                  }
             }
         };
@@ -1051,7 +1067,7 @@
 
         // 3. عرض صفحة إعدادات ياليدين (لم تعد مستخدمة للمفاتيح)
         const renderSettingsPage = () => {
-             // يمكن عرض رسالة هنا بدلاً من الفورم
+            // يمكن عرض رسالة هنا بدلاً من الفورم
         };
 
         // 4. حفظ إعدادات ياليدين (لم تعد مستخدمة للمفاتيح)
@@ -1082,6 +1098,11 @@
              listEl.parentNode.replaceChild(newListEl, listEl);
 
 
+            if (!state.appReady) { // التحقق إذا كانت البيانات جاهزة
+                newListEl.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-gray-500"><div class="loader mx-auto"></div></td></tr>`;
+                return;
+            }
+            
             if (state.products.length === 0) {
                 newListEl.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-gray-500">لا توجد منتجات. <a href="#/admin/products/new" class="text-blue-600 font-medium hover:underline">أضف منتجاً جديداً</a></td></tr>`;
                 return;
@@ -1137,20 +1158,20 @@
                                      إلغاء
                                  </button>
                              </div>
-                         </div>
+                        </div>
                     `);
                     document.getElementById('confirm-delete-btn').onclick = async () => {
                          hideModal();
                          showToast('جاري حذف المنتج...', 'info', 2000);
                          try {
-                              const productRef = doc(db, 'products', idToDelete);
-                              await deleteDoc(productRef);
-                              showToast('تم حذف المنتج بنجاح.', 'success');
-                              // لا تحتاج لاستدعاء renderAdminProductList() هنا
-                              // onSnapshot سيقوم بتحديث الواجهة تلقائياً
+                             const productRef = doc(db, 'products', idToDelete);
+                             await deleteDoc(productRef);
+                             showToast('تم حذف المنتج بنجاح.', 'success');
+                             // لا تحتاج لاستدعاء renderAdminProductList() هنا
+                             // onSnapshot سيقوم بتحديث الواجهة تلقائياً
                          } catch (error) {
-                              console.error("Error deleting product:", error);
-                              showToast('فشل حذف المنتج.', 'error');
+                             console.error("Error deleting product:", error);
+                             showToast('فشل حذف المنتج.', 'error');
                          }
                     };
                 });
@@ -1168,6 +1189,11 @@
              // إزالة المستمعين القدامى
              const newListEl = listEl.cloneNode(false); // Clone without children
              listEl.parentNode.replaceChild(newListEl, listEl);
+
+             if (!state.appReady) { // التحقق إذا كانت البيانات جاهزة
+                newListEl.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-gray-500"><div class="loader mx-auto"></div></td></tr>`;
+                return;
+             }
 
             const sortedOrders = [...state.orders].sort((a, b) => {
                  // Sort by creation time (assuming timestamp field exists)
@@ -1215,7 +1241,7 @@
                 `;
             }).join('');
             if (typeof lucide !== 'undefined') { // Render icons
-                lucide.createIcons();
+                 lucide.createIcons();
             }
         };
 
@@ -1227,8 +1253,13 @@
             const order = state.orders.find(o => o.id == orderId);
 
             if (!order) {
-                pageEl.innerHTML = `<div class="bg-white p-6 rounded-lg shadow text-center"><h1 class="text-2xl font-bold text-red-600 mb-4">لم يتم العثور على الطلب.</h1><a href="#/admin/orders" class="text-blue-600 hover:underline">&larr; العودة لقائمة الطلبات</a></div>`;
-                return;
+                 // أضفنا loader بسيط هنا في حال كان onSnapshot يتأخر
+                 pageEl.innerHTML = '<div class="flex justify-center items-center h-64"><div class="loader"></div></div>';
+                 // إذا لم يتم العثور عليه بعد جاهزية التطبيق، اعرض خطأ
+                 if (state.appReady) {
+                    pageEl.innerHTML = `<div class="bg-white p-6 rounded-lg shadow text-center"><h1 class="text-2xl font-bold text-red-600 mb-4">لم يتم العثور على الطلب.</h1><a href="#/admin/orders" class="text-blue-600 hover:underline">&larr; العودة لقائمة الطلبات</a></div>`;
+                 }
+                 return;
             }
 
             const statusInfo = getStatusBadge(order.status);
@@ -1321,7 +1352,7 @@
 
             renderOrderActions(order); // استدعاء لعرض الأزرار
             if (typeof lucide !== 'undefined') {
-                 lucide.createIcons();
+                lucide.createIcons();
             }
         };
 
@@ -1446,7 +1477,7 @@
 
                       // Generate fake tracking ID if moving to shipped
                       if (newStatus === 'shipped' && !trackingId) {
-                           trackingId = `YAL-${Date.now().toString().slice(-7)}`;
+                          trackingId = `YAL-${Date.now().toString().slice(-7)}`;
                       }
 
                      // منطق تحديث المخزون
@@ -1459,22 +1490,21 @@
                                   const productData = productSnap.data();
                                   const variantIndex = productData.variants.findIndex(v => v.id == item.variant_id);
                                   if (variantIndex > -1) {
-                                       productData.variants[variantIndex].stock_quantity += item.quantity;
-                                       transaction.update(productRef, { variants: productData.variants });
+                                       productData.variants[variantIndex].stock_quantity = (productData.variants[variantIndex].stock_quantity || 0) + item.quantity;
+                                       transaction.update(productRef, { variants: productData.variants, updatedAt: serverTimestamp() });
                                   } else { console.warn(`Variant ${item.variant_id} not found in product ${item.product_id} for stock restore.`); }
                              } else { console.warn(`Product ${item.product_id} not found for stock restore.`); }
                          }
                          console.log("Stock restored for order:", orderId);
-                     } else if (!shouldRestoreStock && !wasStockRemoved && (newStatus === 'confirmed' || newStatus === 'shipped')) {
-                         // إزالة المخزون (يجب أن يكون قد تم إزالته عند إنشاء الطلب الآن)
-                         // يمكن إضافة تحقق إضافي هنا إذا أردت، لكننا سنفترض أنه تم بالفعل
-                         console.log("Stock assumed to be already reduced for order:", orderId);
-                     }
+                     } 
+                     // لا حاجة لـ else if (إزالة المخزون)
+                     // لأن المخزون يتم إزالته عند إنشاء الطلب (في handleCheckoutSubmit)
+                     // وتأكيد الطلب (confirmed) هو مجرد خطوة إدارية الآن
 
                      // تحديث حالة الطلب ورقم التتبع إن وجد
                      transaction.update(orderRef, {
-                          status: newStatus,
-                          yalidine_tracking_id: trackingId // Update tracking ID if generated
+                         status: newStatus,
+                         yalidine_tracking_id: trackingId // Update tracking ID if generated
                      });
                  });
 
@@ -1491,12 +1521,12 @@
         // 10. عرض شارة الحالة (Badge) - كما هي
         const getStatusBadge = (status) => {
             const statuses = {
-                 pending: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300', text: 'قيد الانتظار' },
-                 confirmed: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 border border-blue-300', text: 'مؤكد' },
-                 shipped: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300', text: 'تم الشحن' },
-                 delivered: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 border border-green-300', text: 'تم التسليم' },
-                 cancelled: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 border border-red-300', text: 'ملغي' },
-                 returned: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 border border-gray-300', text: 'مرتجع' }
+                pending: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300', text: 'قيد الانتظار' },
+                confirmed: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 border border-blue-300', text: 'مؤكد' },
+                shipped: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300', text: 'تم الشحن' },
+                delivered: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 border border-green-300', text: 'تم التسليم' },
+                cancelled: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 border border-red-300', text: 'ملغي' },
+                returned: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 border border-gray-300', text: 'مرتجع' }
             };
             return statuses[status] || { class: 'px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 border border-gray-300', text: status };
         };
@@ -1555,117 +1585,116 @@
             }
 
              // --- بناء HTML للفورم (الكود الطويل هنا) ---
-             // هذا الجزء كبير جداً، سأستخدم الكود الأصلي مع تعديلات طفيفة جداً
              pageEl.innerHTML = `
                  <form id="product-form" class="space-y-6">
-                      <div class="flex justify-between items-center mb-6 pb-4 border-b">
-                           <h1 id="product-form-title" class="text-2xl lg:text-3xl font-bold text-gray-900">${productToEdit ? 'تعديل المنتج' : 'إضافة منتج جديد'}</h1>
-                           <div>
-                                <a href="#/admin/products" class="text-gray-600 hover:text-gray-900 mr-4 transition-colors">إلغاء</a>
-                                <button type="submit" id="save-product-btn" class="bg-blue-600 text-white py-2 px-5 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 transition-colors inline-flex items-center justify-center">
-                                     <span class="btn-text">حفظ المنتج</span>
-                                     <div class="loader btn-loader hidden ml-2" style="width: 20px; height:20px; border-width: 3px;"></div>
-                                </button>
-                           </div>
-                      </div>
+                     <div class="flex justify-between items-center mb-6 pb-4 border-b">
+                         <h1 id="product-form-title" class="text-2xl lg:text-3xl font-bold text-gray-900">${productToEdit ? 'تعديل المنتج' : 'إضافة منتج جديد'}</h1>
+                         <div>
+                             <a href="#/admin/products" class="text-gray-600 hover:text-gray-900 mr-4 transition-colors">إلغاء</a>
+                             <button type="submit" id="save-product-btn" class="bg-blue-600 text-white py-2 px-5 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 transition-colors inline-flex items-center justify-center">
+                                 <span class="btn-text">حفظ المنتج</span>
+                                 <div class="loader btn-loader hidden ml-2" style="width: 20px; height:20px; border-width: 3px;"></div>
+                             </button>
+                         </div>
+                     </div>
 
-                      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                           <!-- العمود الأيمن (الرئيسي) -->
-                           <div class="lg:col-span-2 space-y-6">
-                               <!-- معلومات المنتج الأساسية -->
-                               <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
-                                   <h3 class="text-lg font-semibold mb-4 text-gray-800">المعلومات الأساسية</h3>
-                                    <div class="mb-4">
-                                        <label for="product-title" class="block text-sm font-medium text-gray-700 mb-1">عنوان المنتج <span class="text-red-600">*</span></label>
-                                        <input type="text" id="product-title" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
-                                    </div>
-                                    <div>
-                                        <label for="product-description" class="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
-                                        <textarea id="product-description" rows="5" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
-                                    </div>
-                               </div>
+                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                         <!-- العمود الأيمن (الرئيسي) -->
+                         <div class="lg:col-span-2 space-y-6">
+                             <!-- معلومات المنتج الأساسية -->
+                             <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                                 <h3 class="text-lg font-semibold mb-4 text-gray-800">المعلومات الأساسية</h3>
+                                  <div class="mb-4">
+                                      <label for="product-title" class="block text-sm font-medium text-gray-700 mb-1">عنوان المنتج <span class="text-red-600">*</span></label>
+                                      <input type="text" id="product-title" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+                                  </div>
+                                  <div>
+                                      <label for="product-description" class="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
+                                      <textarea id="product-description" rows="5" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                  </div>
+                             </div>
 
-                               <!-- الصور العامة -->
-                               <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
-                                   <h3 class="text-lg font-semibold mb-3 text-gray-800">الصور العامة</h3>
-                                    <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-3 mb-3 rounded-r-md text-sm" role="alert">
-                                         <strong>ملاحظة:</strong> يتم حفظ الصور كبيانات Base64 مباشرة. هذا قد يؤدي إلى بطء وبلوغ حدود حجم المستند في Firestore مع الوقت. الحل الأمثل هو استخدام Firebase Storage (غير مطبق حالياً).
-                                    </div>
-                                   <div id="general-image-dropzone" class="border-2 border-dashed border-gray-300 rounded-md p-6 text-center hover:border-blue-500 transition-colors">
-                                       <label for="general-image-upload" class="cursor-pointer">
-                                           <i data-lucide="upload-cloud" class="w-10 h-10 text-gray-400 mx-auto mb-2"></i>
-                                           <span class="text-blue-600 font-medium">اختر صورًا</span>
-                                           <p class="text-xs text-gray-500 mt-1">أو اسحبها وأفلتها هنا (حد أقصى 5MB للصورة)</p>
-                                           <input type="file" id="general-image-upload" multiple class="hidden" accept="image/*">
-                                       </label>
-                                   </div>
-                                   <div id="general-image-preview" class="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
-                                       <!-- سيتم عرض الصور هنا -->
-                                   </div>
-                               </div>
+                             <!-- الصور العامة -->
+                             <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                                 <h3 class="text-lg font-semibold mb-3 text-gray-800">الصور العامة</h3>
+                                  <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-3 mb-3 rounded-r-md text-sm" role="alert">
+                                      <strong>ملاحظة:</strong> يتم حفظ الصور كبيانات Base64 مباشرة. هذا قد يؤدي إلى بطء وبلوغ حدود حجم المستند في Firestore مع الوقت. الحل الأمثل هو استخدام Firebase Storage (غير مطبق حالياً).
+                                  </div>
+                                 <div id="general-image-dropzone" class="border-2 border-dashed border-gray-300 rounded-md p-6 text-center hover:border-blue-500 transition-colors">
+                                     <label for="general-image-upload" class="cursor-pointer">
+                                         <i data-lucide="upload-cloud" class="w-10 h-10 text-gray-400 mx-auto mb-2"></i>
+                                         <span class="text-blue-600 font-medium">اختر صورًا</span>
+                                         <p class="text-xs text-gray-500 mt-1">أو اسحبها وأفلتها هنا (حد أقصى 5MB للصورة)</p>
+                                         <input type="file" id="general-image-upload" multiple class="hidden" accept="image/*">
+                                     </label>
+                                 </div>
+                                 <div id="general-image-preview" class="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                                     <!-- سيتم عرض الصور هنا -->
+                                 </div>
+                             </div>
 
-                               <!-- الخيارات (الألوان والمقاسات) -->
-                               <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
-                                   <h3 class="text-lg font-semibold mb-4 text-gray-800">الخيارات (Variants)</h3>
-                                   <!-- اختيار الألوان -->
-                                   <div class="mb-5">
-                                       <label class="block text-sm font-medium text-gray-700 mb-2">الألوان المتاحة</label>
-                                       <div id="color-picker-container" class="flex flex-wrap gap-3 items-center">
-                                           <!-- سيتم ملء الألوان هنا -->
-                                       </div>
-                                       <div class="mt-3">
-                                           <label for="custom-color-input" class="inline-flex items-center space-x-2 space-x-reverse text-sm text-gray-600 cursor-pointer hover:text-blue-600">
-                                                <input type="color" id="custom-color-input" class="w-7 h-7 border-none p-0 cursor-pointer rounded-full shadow" title="اختر لون مخصص">
-                                                <span>إضافة لون مخصص</span>
-                                           </label>
-                                       </div>
-                                   </div>
+                             <!-- الخيارات (الألوان والمقاسات) -->
+                             <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                                 <h3 class="text-lg font-semibold mb-4 text-gray-800">الخيارات (Variants)</h3>
+                                 <!-- اختيار الألوان -->
+                                 <div class="mb-5">
+                                     <label class="block text-sm font-medium text-gray-700 mb-2">الألوان المتاحة</label>
+                                     <div id="color-picker-container" class="flex flex-wrap gap-3 items-center">
+                                         <!-- سيتم ملء الألوان هنا -->
+                                     </div>
+                                     <div class="mt-3">
+                                         <label for="custom-color-input" class="inline-flex items-center space-x-2 space-x-reverse text-sm text-gray-600 cursor-pointer hover:text-blue-600">
+                                              <input type="color" id="custom-color-input" class="w-7 h-7 border-none p-0 cursor-pointer rounded-full shadow" title="اختر لون مخصص">
+                                              <span>إضافة لون مخصص</span>
+                                         </label>
+                                     </div>
+                                 </div>
 
-                                   <!-- حاوية إدارة المتغيرات حسب اللون -->
-                                   <div id="color-variant-managers" class="space-y-5 mt-6 pt-5 border-t border-gray-200">
-                                       <!-- سيتم ملء مدير كل لون هنا -->
-                                   </div>
-                               </div>
-                           </div>
+                                 <!-- حاوية إدارة المتغيرات حسب اللون -->
+                                 <div id="color-variant-managers" class="space-y-5 mt-6 pt-5 border-t border-gray-200">
+                                     <!-- سيتم ملء مدير كل لون هنا -->
+                                 </div>
+                             </div>
+                         </div>
 
-                           <!-- العمود الأيسر (الجانبي) -->
-                           <div class="lg:col-span-1 space-y-6">
-                               <!-- التسعير والمخزون -->
-                               <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
-                                   <h3 class="text-lg font-semibold mb-4 text-gray-800">التسعير والمخزون</h3>
-                                   <!-- جدول المتغيرات (يظهر عند اختيار ألوان) -->
-                                   <div id="variants-table-container" class="hidden">
-                                       <p class="text-xs text-gray-500 mb-3">أدخل سعر وكمية كل متغير متاح.</p>
-                                       <div class="overflow-x-auto max-h-96">
-                                           <table class="min-w-full text-sm border-collapse border border-gray-200">
-                                               <thead class="bg-gray-100 sticky top-0">
-                                                   <tr>
-                                                       <th class="p-2 text-right border border-gray-200">المتغير</th>
-                                                       <th class="p-2 text-right border border-gray-200">السعر (دج) <span class="text-red-600">*</span></th>
-                                                       <th class="p-2 text-right border border-gray-200">المخزون <span class="text-red-600">*</span></th>
-                                                   </tr>
-                                               </thead>
-                                               <tbody id="variants-table-body" class="divide-y divide-gray-200">
-                                                   <!-- سيتم ملء الصفوف هنا -->
-                                                   <tr><td colspan="3" class="p-3 text-center text-gray-500 text-xs">اختر الألوان والمقاسات أولاً.</td></tr>
-                                               </tbody>
-                                           </table>
-                                       </div>
-                                   </div>
-                                   <!-- تسعير المنتج البسيط (يظهر إن لم يكن هناك ألوان) -->
-                                   <div id="simple-pricing-container" class="space-y-4">
-                                        <div>
-                                            <label for="simple-price" class="block text-sm font-medium text-gray-700 mb-1">سعر البيع (دج) <span class="text-red-600">*</span></label>
-                                            <input type="number" id="simple-price" step="0.01" min="0" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                        </div>
-                                        <div>
-                                            <label for="simple-stock" class="block text-sm font-medium text-gray-700 mb-1">الكمية في المخزون <span class="text-red-600">*</span></label>
-                                            <input type="number" id="simple-stock" min="0" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                        </div>
-                                   </div>
-                               </div>
-                           </div>
-                      </div>
+                         <!-- العمود الأيسر (الجانبي) -->
+                         <div class="lg:col-span-1 space-y-6">
+                             <!-- التسعير والمخزون -->
+                             <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                                 <h3 class="text-lg font-semibold mb-4 text-gray-800">التسعير والمخزون</h3>
+                                 <!-- جدول المتغيرات (يظهر عند اختيار ألوان) -->
+                                 <div id="variants-table-container" class="hidden">
+                                     <p class="text-xs text-gray-500 mb-3">أدخل سعر وكمية كل متغير متاح.</p>
+                                     <div class="overflow-x-auto max-h-96">
+                                         <table class="min-w-full text-sm border-collapse border border-gray-200">
+                                             <thead class="bg-gray-100 sticky top-0">
+                                                 <tr>
+                                                     <th class="p-2 text-right border border-gray-200">المتغير</th>
+                                                     <th class="p-2 text-right border border-gray-200">السعر (دج) <span class="text-red-600">*</span></th>
+                                                     <th class="p-2 text-right border border-gray-200">المخزون <span class="text-red-600">*</span></th>
+                                                 </tr>
+                                             </thead>
+                                             <tbody id="variants-table-body" class="divide-y divide-gray-200">
+                                                 <!-- سيتم ملء الصفوف هنا -->
+                                                 <tr><td colspan="3" class="p-3 text-center text-gray-500 text-xs">اختر الألوان والمقاسات أولاً.</td></tr>
+                                             </tbody>
+                                         </table>
+                                     </div>
+                                 </div>
+                                 <!-- تسعير المنتج البسيط (يظهر إن لم يكن هناك ألوان) -->
+                                 <div id="simple-pricing-container" class="space-y-4">
+                                      <div>
+                                          <label for="simple-price" class="block text-sm font-medium text-gray-700 mb-1">سعر البيع (دج) <span class="text-red-600">*</span></label>
+                                          <input type="number" id="simple-price" step="0.01" min="0" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                      </div>
+                                      <div>
+                                          <label for="simple-stock" class="block text-sm font-medium text-gray-700 mb-1">الكمية في المخزون <span class="text-red-600">*</span></label>
+                                          <input type="number" id="simple-stock" min="0" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                      </div>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
                  </form>
              `;
 
@@ -1779,7 +1808,7 @@
                                   إلغاء
                               </button>
                           </div>
-                      </div>
+                     </div>
                  `);
                   document.getElementById('confirm-remove-color').onclick = () => {
                       currentSelectedColors.splice(index, 1);
@@ -1842,7 +1871,7 @@
                                  <label class="border-2 border-dashed border-gray-300 rounded-md p-4 text-center block cursor-pointer text-blue-600 hover:border-blue-500 hover:bg-blue-50 transition-colors text-sm">
                                       <i data-lucide="image-plus" class="w-6 h-6 mx-auto mb-1 text-gray-400"></i>
                                      + إضافة صور
-                                     <input type="file" class="hidden" multiple accept="image/*" data-color-hex-upload="${color.hex}">
+                                      <input type="file" class="hidden" multiple accept="image/*" data-color-hex-upload="${color.hex}">
                                  </label>
                                  <div class="mt-4 grid grid-cols-3 gap-3" data-image-preview-for="${color.hex}">
                                      ${data.images.map((img, index) => `
@@ -1910,17 +1939,17 @@
                      const hex = e.currentTarget.dataset.colorHexSize;
                      const size = e.currentTarget.dataset.size;
                       if(currentColorSpecificData[hex]) {
-                          const sizes = currentColorSpecificData[hex].sizes || [];
-                          const sizeIndex = sizes.indexOf(size);
-                          if (sizeIndex > -1) {
-                              sizes.splice(sizeIndex, 1); // Remove size
-                          } else {
-                              sizes.push(size); // Add size
-                              sizes.sort((a, b) => SIZES.indexOf(a) - SIZES.indexOf(b)); // Keep order consistent
-                          }
-                          currentColorSpecificData[hex].sizes = sizes;
-                          e.currentTarget.classList.toggle('selected');
-                          updateVariantsTable(tempVariantData); // تحديث جدول الأسعار مع الحفاظ على القيم
+                           const sizes = currentColorSpecificData[hex].sizes || [];
+                           const sizeIndex = sizes.indexOf(size);
+                           if (sizeIndex > -1) {
+                               sizes.splice(sizeIndex, 1); // Remove size
+                           } else {
+                               sizes.push(size); // Add size
+                               sizes.sort((a, b) => SIZES.indexOf(a) - SIZES.indexOf(b)); // Keep order consistent
+                           }
+                           currentColorSpecificData[hex].sizes = sizes;
+                           e.currentTarget.classList.toggle('selected');
+                           updateVariantsTable(tempVariantData); // تحديث جدول الأسعار مع الحفاظ على القيم
                       }
                  });
              });
@@ -1979,26 +2008,26 @@
                            const currentHex = e.currentTarget.dataset.colorHexSize;
                            const currentSize = e.currentTarget.dataset.size;
                             if(currentColorSpecificData[currentHex]) {
-                                const sizes = currentColorSpecificData[currentHex].sizes || [];
-                                const sizeIndex = sizes.indexOf(currentSize);
-                                if (sizeIndex > -1) sizes.splice(sizeIndex, 1);
-                                else {
+                                 const sizes = currentColorSpecificData[currentHex].sizes || [];
+                                 const sizeIndex = sizes.indexOf(currentSize);
+                                 if (sizeIndex > -1) sizes.splice(sizeIndex, 1);
+                                 else {
                                      sizes.push(currentSize);
                                      sizes.sort((a, b) => SIZES.indexOf(a) - SIZES.indexOf(b));
-                                }
-                                currentColorSpecificData[currentHex].sizes = sizes;
-                                e.currentTarget.classList.toggle('selected');
+                                 }
+                                 currentColorSpecificData[currentHex].sizes = sizes;
+                                 e.currentTarget.classList.toggle('selected');
 
-                                // Preserve existing table data before updating
-                                const tempVariantData = {};
-                                 document.querySelectorAll('#variants-table-body tr[data-variant-key]').forEach(row => {
-                                     const key = row.dataset.variantKey;
-                                     tempVariantData[key] = {
-                                         price: row.querySelector('[data-variant-input="price"]')?.value,
-                                         stock: row.querySelector('[data-variant-input="stock"]')?.value
-                                     };
-                                 });
-                                updateVariantsTable(tempVariantData);
+                                 // Preserve existing table data before updating
+                                 const tempVariantData = {};
+                                  document.querySelectorAll('#variants-table-body tr[data-variant-key]').forEach(row => {
+                                      const key = row.dataset.variantKey;
+                                      tempVariantData[key] = {
+                                          price: row.querySelector('[data-variant-input="price"]')?.value,
+                                          stock: row.querySelector('[data-variant-input="stock"]')?.value
+                                      };
+                                  });
+                                 updateVariantsTable(tempVariantData);
                             }
                       });
                   });
@@ -2112,8 +2141,8 @@
                        if (product.variants.length === 1 && product.variants[0].is_default && !hasVariants) {
                             // Simple product being edited
                             tempVariantData['simple'] = {
-                                 price: product.variants[0].price || '',
-                                 stock: product.variants[0].stock_quantity || ''
+                                price: product.variants[0].price || '',
+                                stock: product.variants[0].stock_quantity || ''
                             };
                        } else {
                             // Product with variants being edited
@@ -2121,12 +2150,12 @@
                                  const colorName = variant.options?.Couleur;
                                  const sizeName = variant.options?.Taille;
                                  const color = product.product_options?.find(opt => opt.name === 'Couleur')
-                                                            ?.values.find(v => v.value === colorName);
+                                                        ?.values.find(v => v.value === colorName);
                                  if (color) {
                                       const key = `${color.hex_code}|${sizeName || ''}`;
                                       tempVariantData[key] = {
-                                           price: variant.price || '',
-                                           stock: variant.stock_quantity ?? '' // Use ?? for 0 stock
+                                          price: variant.price || '',
+                                          stock: variant.stock_quantity ?? '' // Use ?? for 0 stock
                                       };
                                  }
                             });
@@ -2142,7 +2171,7 @@
                       const currentPrice = row.querySelector('[data-variant-input="price"]')?.value;
                       const currentStock = row.querySelector('[data-variant-input="stock"]')?.value;
                       if (currentPrice || currentStock) { // Only override if user entered something
-                           tempVariantData[key] = { price: currentPrice, stock: currentStock };
+                          tempVariantData[key] = { price: currentPrice, stock: currentStock };
                       }
                  });
                  updateVariantsTable(tempVariantData);
@@ -2184,7 +2213,7 @@
                      });
                       // Check if ANY color has sizes to determine if size column is needed
                       if (Object.values(currentColorSpecificData).some(data => data.sizes && data.sizes.length > 0)) {
-                           showSizeColumn = true;
+                          showSizeColumn = true;
                       }
                  }
              });
@@ -2270,8 +2299,8 @@
                  variantSpecificData: JSON.parse(JSON.stringify(currentColorSpecificData)), // Store sizes linked to colors
                  product_options: [],
                  variants: [],
-                  createdAt: serverTimestamp(), // Add server timestamp
-                  updatedAt: serverTimestamp()
+                 // createdAt: serverTimestamp(), // Add server timestamp
+                 updatedAt: serverTimestamp()
              };
 
              if (hasVariants) {
@@ -2340,7 +2369,7 @@
                   // --- Build variant images ---
                  for (const hex of Object.keys(currentColorSpecificData)) {
                       if (currentSelectedColors.some(c => c.hex === hex)) {
-                         productData.variantImages[hex] = currentColorSpecificData[hex].images;
+                          productData.variantImages[hex] = currentColorSpecificData[hex].images;
                       }
                  }
 
@@ -2351,7 +2380,7 @@
                       // Optionally, set the first variant as default if none is explicitly marked
                       const hasDefault = productData.variants.some(v => v.is_default);
                       if (!hasDefault) {
-                           productData.variants[0].is_default = true;
+                          productData.variants[0].is_default = true;
                       }
                  }
 
@@ -2400,7 +2429,8 @@
                        showToast('تم تحديث المنتج بنجاح!', 'success');
                   } else {
                        // Add new product
-                       const docRef = await addDoc(productsCollection, productData);
+                       // أضف createdAt فقط عند الإنشاء
+                       const docRef = await addDoc(productsCollection, { ...productData, createdAt: serverTimestamp() });
                        console.log("Product added with ID: ", docRef.id);
                        showToast('تم إضافة المنتج بنجاح!', 'success');
                   }
@@ -2431,17 +2461,17 @@
              if (!state.appReady) { // إذا كانت البيانات لم تحمل بعد
                   shopLoader.classList.remove('hidden');
                   noProductsMsg.classList.add('hidden');
-                  return;
+                  return; // أبقِ على الـ Loader
              }
 
-             shopLoader.classList.add('hidden');
+             shopLoader.classList.add('hidden'); // أخفِ الـ Loader بما أن البيانات جاهزة
 
              if (state.products.length === 0) {
                   noProductsMsg.innerHTML = `لا توجد منتجات لعرضها حالياً. ${isAdmin() ? '<a href="#/admin/products/new" class="text-blue-600 font-medium hover:underline">أضف منتجاً</a>' : ''}`;
                   noProductsMsg.classList.remove('hidden');
                  return;
              }
-
+             
              noProductsMsg.classList.add('hidden'); // إخفاء رسالة عدم وجود منتجات
 
              state.products.forEach(product => {
@@ -2455,7 +2485,8 @@
                  productCard.className = "group bg-white rounded-lg shadow border border-gray-200 overflow-hidden flex flex-col transition-shadow hover:shadow-md";
                  productCard.innerHTML = `
                      <a href="#/product/${product.id}" class="block overflow-hidden product-card-image-container">
-                          <img src="${displayImage}" alt="${product.title || 'منتج'}" loading="lazy">
+                          <!-- استخدام كلاسات CSS للتحكم بالصورة -->
+                         <img src="${displayImage}" alt="${product.title || 'منتج'}" loading="lazy">
                      </a>
                      <div class="p-4 flex flex-col flex-grow">
                           <h3 class="text-base font-semibold text-gray-800 truncate mb-1 flex-grow">
@@ -2480,16 +2511,19 @@
             if (!pageEl) return;
              pageEl.innerHTML = '<div class="flex justify-center items-center h-64"><div class="loader"></div></div>'; // Show loader
 
-            const product = state.products.find(p => p.id == productId);
-
-            if (!state.appReady) { // إذا كانت المنتجات لم تحمل بعد
-                 // يمكن إبقاء الـ Loader أو عرض رسالة "جاري التحميل"
+            // انتظر حتى تصبح المنتجات جاهزة قبل محاولة العثور على المنتج
+            if (!state.appReady) {
+                 // إذا كانت المنتجات لم تحمل بعد، انتظر. 
+                 // onSnapshot سيستدعي router() مجدداً عند اكتمال التحميل.
+                 console.log("Product detail page: Waiting for products to load...");
                  return;
             }
 
+            const product = state.products.find(p => p.id == productId);
 
             if (!product) {
                 pageEl.innerHTML = `<div class="bg-white p-6 rounded-lg shadow text-center"><h1 class="text-2xl font-bold text-red-600 mb-4">لم يتم العثور على المنتج.</h1><a href="#/" class="text-blue-600 hover:underline">&larr; العودة للمتجر</a></div>`;
+                if (typeof lucide !== 'undefined') { lucide.createIcons(); }
                 return;
             }
 
@@ -2502,9 +2536,9 @@
             const generalImages = product.generalImages || []; // Ensure it's an array
 
             const initialImagesForThumbnails = (initialColorHex && variantImages[initialColorHex]?.length > 0)
-                                          ? variantImages[initialColorHex]
-                                          : generalImages;
-
+                                                 ? variantImages[initialColorHex]
+                                                 : generalImages;
+            
              // Ensure initialImagesForThumbnails is always an array
              const safeInitialImages = Array.isArray(initialImagesForThumbnails) ? initialImagesForThumbnails : [];
 
@@ -2536,11 +2570,11 @@
                                 `).join('')}
                                  <!-- Fallback to general images if variant images were empty initially -->
                                 ${safeInitialImages.length === 0 && generalImages.length > 0 ? generalImages.map((img, index) => `
-                                     <button class="aspect-w-1 aspect-h-1 block rounded-md overflow-hidden border-2 ${index === 0 ? 'border-blue-500' : 'border-transparent'} hover:border-blue-400 focus:outline-none focus:border-blue-500 transition" data-img-url="${img.url}">
-                                         <img src="${img.url}" alt="Thumbnail ${index+1}" class="w-full h-full object-cover" loading="lazy">
-                                     </button>
+                                    <button class="aspect-w-1 aspect-h-1 block rounded-md overflow-hidden border-2 ${index === 0 ? 'border-blue-500' : 'border-transparent'} hover:border-blue-400 focus:outline-none focus:border-blue-500 transition" data-img-url="${img.url}">
+                                        <img src="${img.url}" alt="Thumbnail ${index+1}" class="w-full h-full object-cover" loading="lazy">
+                                    </button>
                                 `).join('') : ''}
-                                 ${safeInitialImages.length === 0 && generalImages.length === 0 ? '<p class="text-xs text-gray-400 col-span-4 text-center">لا توجد صور مصغرة</p>' : ''}
+                                ${safeInitialImages.length === 0 && generalImages.length === 0 ? '<p class="text-xs text-gray-400 col-span-4 text-center">لا توجد صور مصغرة</p>' : ''}
                             </div>
                         </div>
 
@@ -2566,9 +2600,9 @@
                                 <!-- خيارات المقاسات -->
                                 ${sizeOption ? `
                                     <div>
-                                         <div class="flex justify-between items-center mb-2">
-                                             <h3 class="text-sm font-medium text-gray-900">المقاس: <span id="selected-size-name" class="font-normal text-gray-600">اختر مقاسًا</span></h3>
-                                         </div>
+                                        <div class="flex justify-between items-center mb-2">
+                                            <h3 class="text-sm font-medium text-gray-900">المقاس: <span id="selected-size-name" class="font-normal text-gray-600">اختر مقاسًا</span></h3>
+                                        </div>
                                         <div id="product-size-options" class="flex flex-wrap gap-2">
                                             ${sizeOption.values.map(val => `
                                                 <button type="button" class="size-tag" data-size-name="${val.value}" disabled>
@@ -2661,13 +2695,13 @@
                       stockMessageText = 'الرجاء اختيار جميع الخيارات المتاحة.';
                       buttonText = 'اختر الخيارات';
                   } else if (selectedVariant) {
-                      if (selectedVariant.stock_quantity > 0) {
-                          stockMessageText = '';
-                          canAddToCart = true;
-                      } else {
-                          stockMessageText = 'نفذ المخزون لهذا الخيار.';
-                          buttonText = 'نفذ المخزون';
-                      }
+                       if (selectedVariant.stock_quantity > 0) {
+                           stockMessageText = '';
+                           canAddToCart = true;
+                       } else {
+                           stockMessageText = 'نفذ المخزون لهذا الخيار.';
+                           buttonText = 'نفذ المخزون';
+                       }
                   } else if (hasOptions) {
                       stockMessageText = 'هذا المزيج من الخيارات غير متوفر.';
                       buttonText = 'غير متوفر';
@@ -2735,10 +2769,10 @@
                             mainImage.src = safeImagesToShow[0].url;
                        }
                   } else if (mainImage && generalImages.length > 0) {
-                      // Fallback to first general image if no variant images were found
-                      if (!generalImages.map(img => img.url.split('?')[0]).includes(mainImage.src.split('?')[0])) {
+                       // Fallback to first general image if no variant images were found
+                       if (!generalImages.map(img => img.url.split('?')[0]).includes(mainImage.src.split('?')[0])) {
                            mainImage.src = generalImages[0].url;
-                      }
+                       }
                   } else if (mainImage) {
                        mainImage.src = 'https://placehold.co/600x600/f1f5f9/a3a3a3?text=No+Image'; // Placeholder
                   }
@@ -2942,7 +2976,7 @@
                                               <p class="font-semibold text-gray-900 text-base leading-tight">${item.title}</p>
                                               <p class="text-sm text-gray-500 mt-1">${item.optionsText}</p>
                                           </div>
-                                          <p class="font-semibold text-gray-900 text-base sm:hidden">${(item.price * item.quantity).toLocaleString('fr-DZ')} د.ج</p>
+                                         <p class="font-semibold text-gray-900 text-base sm:hidden">${(item.price * item.quantity).toLocaleString('fr-DZ')} د.ج</p>
                                      </div>
                                      <!-- أزرار الكمية -->
                                      <div class="flex items-center justify-between sm:justify-start space-x-2 space-x-reverse mt-2">
@@ -2962,7 +2996,7 @@
                                       ${item.quantity >= item.stock ? '<p class="text-xs text-red-500 mt-1">الكمية القصوى في المخزون</p>' : ''}
                                  </div>
                                  <div class="text-left flex-shrink-0 hidden sm:block" dir="ltr">
-                                     <p class="font-semibold text-gray-900 text-base">${(item.price * item.quantity).toLocaleString('fr-DZ')} د.ج</p>
+                                      <p class="font-semibold text-gray-900 text-base">${(item.price * item.quantity).toLocaleString('fr-DZ')} د.ج</p>
                                  </div>
                              </div>
                          `).join('')}
@@ -3053,7 +3087,7 @@
                               إلغاء
                           </button>
                       </div>
-                  </div>
+                 </div>
              `);
               document.getElementById('confirm-remove-item').onclick = () => {
                   state.cart = state.cart.filter(item => item.cartId !== cartId);
@@ -3107,29 +3141,29 @@
 
                              <h3 class="text-xl font-semibold mb-1 pt-4 text-gray-800">2. اختيار طريقة التوصيل</h3>
                              ${wilayasError ? `<p class="text-red-600 bg-red-100 p-3 rounded-md text-sm">${wilayasError}</p>` : ''}
-                              <!-- اختيار نوع التوصيل -->
+                             <!-- اختيار نوع التوصيل -->
                              <div class="radio-card-group grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
                                   <label id="delivery-office-label" class="disabled">
-                                      <input type="radio" name="delivery_type" value="office" disabled>
-                                      <div class="radio-card">
-                                           <div class="icon">
-                                                <!-- استبدال أيقونة السحابة بأيقونة مكتب/مبنى -->
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                                           </div>
-                                           <span class="font-semibold text-gray-800">مكتب Yalidine</span>
-                                           <small class="text-xs text-gray-500 mt-1">استلم من أقرب مكتب</small>
-                                           <span id="desk-fee-display" class="text-sm font-bold text-blue-600 mt-2"></span>
-                                      </div>
+                                       <input type="radio" name="delivery_type" value="office" disabled>
+                                       <div class="radio-card">
+                                            <div class="icon">
+                                                 <!-- استبدال أيقونة السحابة بأيقونة مكتب/مبنى -->
+                                                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                                            </div>
+                                            <span class="font-semibold text-gray-800">مكتب Yalidine</span>
+                                            <small class="text-xs text-gray-500 mt-1">استلم من أقرب مكتب</small>
+                                            <span id="desk-fee-display" class="text-sm font-bold text-blue-600 mt-2"></span>
+                                       </div>
                                   </label>
                                    <label id="delivery-home-label" class="disabled">
                                        <input type="radio" name="delivery_type" value="home" disabled>
                                        <div class="radio-card">
-                                           <div class="icon">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                                           </div>
-                                           <span class="font-semibold text-gray-800">توصيل للمنزل</span>
-                                            <small class="text-xs text-gray-500 mt-1">توصيل مباشر لباب منزلك</small>
-                                            <span id="home-fee-display" class="text-sm font-bold text-blue-600 mt-2"></span>
+                                            <div class="icon">
+                                                 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                            </div>
+                                            <span class="font-semibold text-gray-800">توصيل للمنزل</span>
+                                             <small class="text-xs text-gray-500 mt-1">توصيل مباشر لباب منزلك</small>
+                                             <span id="home-fee-display" class="text-sm font-bold text-blue-600 mt-2"></span>
                                        </div>
                                    </label>
                              </div>
@@ -3153,443 +3187,860 @@
 
                              <div id="address-container" class="hidden">
                                  <label for="checkout-address" class="block text-sm font-medium text-gray-700 mb-1">العنوان بالتفصيل (الحي، الشارع...) <span class="text-red-600">*</span></label>
-                                                                    <input type="text" id="checkout-address" name="address" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                                </div>
-                            </form>
-                        </div>
+                                 <input type="text" id="checkout-address" name="address" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                             </div>
+                         </form>
+                     </div>
 
-                        <!-- ملخص الطلب -->
-                        <aside class="lg:col-span-1">
-                            <div class="bg-white p-6 rounded-lg shadow border border-gray-200 sticky top-24">
-                                <h3 class="text-xl font-semibold mb-4 pb-4 border-b text-gray-800">ملخص الطلب</h3>
-                                <!-- Cart Items Mini View -->
-                                <div class="space-y-3 max-h-48 overflow-y-auto mb-4 pr-2 border-b pb-4">
-                                    ${state.cart.map(item => `
-                                        <div class="flex items-center space-x-3 space-x-reverse">
-                                            <div class="relative flex-shrink-0">
-                                                <img src="${item.image_url}" alt="${item.title}" class="w-12 h-14 object-cover rounded-md border">
-                                                <span class="absolute -top-2 -right-2 bg-gray-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">${item.quantity}</span>
-                                            </div>
-                                            <div class="flex-1 min-w-0">
-                                                <p class="text-sm font-medium text-gray-800 truncate">${item.title}</p>
-                                                <p class="text-xs text-gray-500 truncate">${item.optionsText}</p>
-                                            </div>
-                                            <p class="text-sm font-medium flex-shrink-0" dir="ltr">${(item.price * item.quantity).toLocaleString('fr-DZ')} DZD</p>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                                <!-- Totals -->
-                                <div class="space-y-3 text-sm pt-4" dir="ltr">
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-600">Subtotal</span>
-                                        <span class="font-medium text-gray-800">${subTotal.toLocaleString('fr-DZ')} DZD</span>
-                                    </div>
-                                    <div class="flex justify-between">
-                                        <span class="text-gray-600">Shipping</span>
-                                        <span id="shipping-cost" class="font-medium text-gray-800">اختر الولاية</span>
-                                    </div>
-                                    <div class="flex justify-between text-lg font-bold text-gray-900 mt-4 pt-4 border-t border-gray-300">
-                                        <span>Total</span>
-                                        <span id="total-cost" class="font-medium">${subTotal.toLocaleString('fr-DZ')} DZD</span>
-                                    </div>
-                                </div>
-                                <button type="submit" form="checkout-form" id="submit-order-btn" class="w-full text-center mt-6 bg-blue-600 text-white py-3 px-6 rounded-md font-medium text-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center" disabled>
-                                    <span class="btn-text">تأكيد الطلب</span>
-                                    <div class="loader btn-loader hidden" style="width: 24px; height:24px; border-width: 3px;"></div>
-                                </button>
-                                 <p class="text-xs text-center text-gray-500 mt-3">الدفع عند الاستلام متوفر.</p>
-                            </div>
-                        </aside>
-                    </div>
-                `;
+                     <!-- ملخص الطلب -->
+                     <aside class="lg:col-span-1">
+                         <div class="bg-white p-6 rounded-lg shadow border border-gray-200 sticky top-24">
+                             <h3 class="text-xl font-semibold mb-4 pb-4 border-b text-gray-800">ملخص الطلب</h3>
+                             <!-- Cart Items Mini View -->
+                             <div class="space-y-3 max-h-48 overflow-y-auto mb-4 pr-2 border-b pb-4">
 
-            // إضافة مستمعين لصفحة الدفع بعد عرضها
-            setupCheckoutListeners(subTotal);
-             // إظهار الخطأ إذا فشل تحميل الولايات
-            if (wilayasError) {
-                 showToast(wilayasError, 'error', 5000);
-            }
-        };
+وحتى نهاية الملف </html>.
 
-        // 10. ربط المستمعين لصفحة الدفع
-        const setupCheckoutListeners = (subTotal) => {
-            const form = document.getElementById('checkout-form');
-            const wilayaSelect = document.getElementById('checkout-wilaya');
-            const communeCenterSelect = document.getElementById('checkout-commune-center');
-            const shippingCostEl = document.getElementById('shipping-cost');
-            const totalCostEl = document.getElementById('total-cost');
-            const addressContainer = document.getElementById('address-container');
-            const checkoutAddressInput = document.getElementById('checkout-address');
-            const deliveryTypeRadios = form.querySelectorAll('input[name="delivery_type"]');
-            const submitBtn = document.getElementById('submit-order-btn');
-             const submitBtnText = submitBtn.querySelector('.btn-text');
-             const submitBtnLoader = submitBtn.querySelector('.btn-loader');
-            const communeCenterLoadingEl = document.getElementById('commune-center-loading');
-            const communeCenterErrorEl = document.getElementById('commune-center-error');
-             const communeCenterLabel = document.getElementById('commune-or-center-label');
-             const officeLabel = document.getElementById('delivery-office-label');
-             const homeLabel = document.getElementById('delivery-home-label');
-             const officeRadio = officeLabel?.querySelector('input');
-             const homeRadio = homeLabel?.querySelector('input');
-             const deskFeeDisplay = document.getElementById('desk-fee-display');
-             const homeFeeDisplay = document.getElementById('home-fee-display');
+                                 <div class="space-y-3 max-h-48 overflow-y-auto mb-4 pr-2 border-b pb-4">
 
-            let currentShippingCost = null; // null indicates not calculated yet
-            let deliveryFees = { home: null, desk: null }; // Store fees for the selected wilaya
+                                     ${state.cart.map(item => `
 
-            const updateTotal = () => {
-                const calculatedShipping = currentShippingCost ?? 0;
-                shippingCostEl.textContent = currentShippingCost !== null ? `${calculatedShipping.toLocaleString('fr-DZ')} DZD` : 'اختر التوصيل';
-                totalCostEl.textContent = `${(subTotal + calculatedShipping).toLocaleString('fr-DZ')} DZD`;
-                // Enable submit button only if shipping is calculated (not null) and > 0, and form is potentially valid
-                submitBtn.disabled = currentShippingCost === null || currentShippingCost < 0 ; // Allow 0 DZD shipping
-            };
+                                         <div class="flex items-center space-x-3 space-x-reverse">
 
-             const resetDeliveryOptions = () => {
+                                             <div class="relative flex-shrink-0">
+
+                                                 <img src="${item.image_url}" alt="${item.title}" class="w-12 h-14 object-cover rounded-md border">
+
+                                                 <span class="absolute -top-2 -right-2 bg-gray-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">${item.quantity}</span>
+
+                                             </div>
+
+                                             <div class="flex-1 min-w-0">
+
+                                                 <p class="text-sm font-medium text-gray-800 truncate">${item.title}</p>
+
+                                                 <p class="text-xs text-gray-500 truncate">${item.optionsText}</p>
+
+                                             </div>
+
+                                             <p class="text-sm font-medium flex-shrink-0" dir="ltr">${(item.price * item.quantity).toLocaleString('fr-DZ')} DZD</p>
+
+                                         </div>
+
+                                     `).join('')}
+
+                                 </div>
+
+                                 <!-- Totals -->
+
+                                 <div class="space-y-3 text-sm pt-4" dir="ltr">
+
+                                     <div class="flex justify-between">
+
+                                         <span class="text-gray-600">Subtotal</span>
+
+                                         <span class="font-medium text-gray-800">${subTotal.toLocaleString('fr-DZ')} DZD</span>
+
+                                     </div>
+
+                                     <div class="flex justify-between">
+
+                                         <span class="text-gray-600">Shipping</span>
+
+                                         <span id="shipping-cost" class="font-medium text-gray-800">اختر الولاية</span>
+
+                                     </div>
+
+                                     <div class="flex justify-between text-lg font-bold text-gray-900 mt-4 pt-4 border-t border-gray-300">
+
+                                         <span>Total</span>
+
+                                         <span id="total-cost" class="font-medium">${subTotal.toLocaleString('fr-DZ')} DZD</span>
+
+                                     </div>
+
+                                 </div>
+
+                                 <button type="submit" form="checkout-form" id="submit-order-btn" class="w-full text-center mt-6 bg-blue-600 text-white py-3 px-6 rounded-md font-medium text-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center" disabled>
+
+                                     <span class="btn-text">تأكيد الطلب</span>
+
+                                     <div class="loader btn-loader hidden" style="width: 24px; height:24px; border-width: 3px;"></div>
+
+                                 </button>
+
+                                  <p class="text-xs text-center text-gray-500 mt-3">الدفع عند الاستلام متوفر.</p>
+
+                             </div>
+
+                         </aside>
+
+                     </div>
+
+                 `;
+
+ 
+
+         // إضافة مستمعين لصفحة الدفع بعد عرضها
+
+         setupCheckoutListeners(subTotal);
+
+          // إظهار الخطأ إذا فشل تحميل الولايات
+
+         if (wilayasError) {
+
+             showToast(wilayasError, 'error', 5000);
+
+         }
+
+     };
+
+ 
+
+     // 10. ربط المستمعين لصفحة الدفع
+
+     const setupCheckoutListeners = (subTotal) => {
+
+         const form = document.getElementById('checkout-form');
+
+         const wilayaSelect = document.getElementById('checkout-wilaya');
+
+         const communeCenterSelect = document.getElementById('checkout-commune-center');
+
+         const shippingCostEl = document.getElementById('shipping-cost');
+
+         const totalCostEl = document.getElementById('total-cost');
+
+         const addressContainer = document.getElementById('address-container');
+
+         const checkoutAddressInput = document.getElementById('checkout-address');
+
+         const deliveryTypeRadios = form.querySelectorAll('input[name="delivery_type"]');
+
+         const submitBtn = document.getElementById('submit-order-btn');
+
+          const submitBtnText = submitBtn.querySelector('.btn-text');
+
+          const submitBtnLoader = submitBtn.querySelector('.btn-loader');
+
+         const communeCenterLoadingEl = document.getElementById('commune-center-loading');
+
+         const communeCenterErrorEl = document.getElementById('commune-center-error');
+
+          const communeCenterLabel = document.getElementById('commune-or-center-label');
+
+          const officeLabel = document.getElementById('delivery-office-label');
+
+          const homeLabel = document.getElementById('delivery-home-label');
+
+          const officeRadio = officeLabel?.querySelector('input');
+
+          const homeRadio = homeLabel?.querySelector('input');
+
+          const deskFeeDisplay = document.getElementById('desk-fee-display');
+
+          const homeFeeDisplay = document.getElementById('home-fee-display');
+
+ 
+
+         let currentShippingCost = null; // null indicates not calculated yet
+
+         let deliveryFees = { home: null, desk: null }; // Store fees for the selected wilaya
+
+ 
+
+         const updateTotal = () => {
+
+             const calculatedShipping = currentShippingCost ?? 0;
+
+             shippingCostEl.textContent = currentShippingCost !== null ? `${calculatedShipping.toLocaleString('fr-DZ')} DZD` : 'اختر التوصيل';
+
+             totalCostEl.textContent = `${(subTotal + calculatedShipping).toLocaleString('fr-DZ')} DZD`;
+
+             // Enable submit button only if shipping is calculated (not null) and > 0, and form is potentially valid
+
+             submitBtn.disabled = currentShippingCost === null || currentShippingCost < 0 ; // Allow 0 DZD shipping
+
+         };
+
+ 
+
+          const resetDeliveryOptions = () => {
+
                  deliveryFees = { home: null, desk: null };
+
                  currentShippingCost = null;
+
                  communeCenterSelect.innerHTML = '<option value="">-- اختر الولاية أولاً --</option>';
+
                  communeCenterSelect.disabled = true;
+
                  addressContainer.classList.add('hidden');
+
                  checkoutAddressInput.required = false;
-                 communeCenterLoadingEl.classList.add('hidden');
-                 communeCenterErrorEl.classList.add('hidden');
-                 // Reset and disable radio buttons and labels
-                 if(officeRadio) officeRadio.disabled = true;
-                 if(homeRadio) homeRadio.disabled = true;
-                 if(officeRadio) officeRadio.checked = false;
-                 if(homeRadio) homeRadio.checked = false;
-                 officeLabel.classList.add('disabled');
-                 homeLabel.classList.add('disabled');
-                 if(deskFeeDisplay) deskFeeDisplay.textContent = '';
-                 if(homeFeeDisplay) homeFeeDisplay.textContent = '';
+
+                  communeCenterLoadingEl.classList.add('hidden');
+
+                  communeCenterErrorEl.classList.add('hidden');
+
+                  // Reset and disable radio buttons and labels
+
+                  if(officeRadio) officeRadio.disabled = true;
+
+                  if(homeRadio) homeRadio.disabled = true;
+
+                  if(officeRadio) officeRadio.checked = false;
+
+                  if(homeRadio) homeRadio.checked = false;
+
+                  officeLabel.classList.add('disabled');
+
+                  homeLabel.classList.add('disabled');
+
+                  if(deskFeeDisplay) deskFeeDisplay.textContent = '';
+
+                  if(homeFeeDisplay) homeFeeDisplay.textContent = '';
+
                  updateTotal();
-             };
 
+          };
 
-            // عند تغيير الولاية
-            wilayaSelect.addEventListener('change', async () => {
-                 const wilayaId = wilayaSelect.value;
-                  resetDeliveryOptions(); // Reset everything related to delivery
+ 
 
-                if (!wilayaId) {
-                    return;
-                }
+ 
 
-                // إظهار التحميل وإخفاء الأخطاء السابقة
-                communeCenterLoadingEl.classList.remove('hidden');
-                communeCenterLoadingEl.textContent = 'جاري حساب أسعار الشحن...';
-                communeCenterErrorEl.classList.add('hidden');
-                 submitBtn.disabled = true; // Disable submit while loading fees
+         // عند تغيير الولاية
 
-                try {
-                     // جلب أسعار الشحن أولاً
-                     const feesDataResponse = await fetchYalidineData('fees', { to_wilaya_id: wilayaId });
-                     console.log("Fees Response:", feesDataResponse);
+         wilayaSelect.addEventListener('change', async () => {
 
-                      // التحقق من وجود بيانات per_commune (هيكلية الاستجابة قد تختلف)
-                      // بناءً على كود PHP، نفترض أن الاستجابة تحتوي على كائن per_commune
-                      const feesData = feesDataResponse?.per_commune;
+              const wilayaId = wilayaSelect.value;
 
-                     if (feesData && Object.keys(feesData).length > 0) {
-                         // استخراج رسوم أول بلدية كمثال (كما في كود PHP)
-                          // تحتاج إلى التأكد من أن المفاتيح `express_home` و `express_desk` موجودة
-                         const firstCommuneFeesKey = Object.keys(feesData)[0];
-                         const firstCommuneFees = feesData[firstCommuneFeesKey];
+               resetDeliveryOptions(); // Reset everything related to delivery
 
-                         if (firstCommuneFees) {
-                             deliveryFees.home = firstCommuneFees.express_home ?? null; // Use null if undefined
-                             deliveryFees.desk = firstCommuneFees.express_desk ?? null;
+ 
 
-                             // تفعيل خيارات التوصيل بناءً على الأسعار المتاحة
-                             if (deliveryFees.desk !== null && deliveryFees.desk >= 0) {
-                                 officeRadio.disabled = false;
-                                 officeLabel.classList.remove('disabled');
-                                 deskFeeDisplay.textContent = `${deliveryFees.desk.toLocaleString('fr-DZ')} دج`;
-                             } else {
-                                 deskFeeDisplay.textContent = 'غير متاح';
-                             }
-                             if (deliveryFees.home !== null && deliveryFees.home >= 0) {
-                                 homeRadio.disabled = false;
-                                 homeLabel.classList.remove('disabled');
-                                 homeFeeDisplay.textContent = `${deliveryFees.home.toLocaleString('fr-DZ')} دج`;
-                             } else {
-                                 homeFeeDisplay.textContent = 'غير متاح';
-                             }
+             if (!wilayaId) {
 
-                             // تحديد الخيار الأرخص (أو المكتب) كافتراضي إذا كان متاحاً
-                             if (deliveryFees.desk !== null && deliveryFees.desk >= 0) {
-                                 officeRadio.checked = true;
-                                 officeRadio.dispatchEvent(new Event('change', { bubbles:true })); // Trigger change event
-                             } else if (deliveryFees.home !== null && deliveryFees.home >= 0) {
-                                 homeRadio.checked = true;
-                                 homeRadio.dispatchEvent(new Event('change', { bubbles:true })); // Trigger change event
-                             } else {
-                                 // No options available
-                                 communeCenterLoadingEl.classList.add('hidden');
-                                 communeCenterErrorEl.textContent = 'الشحن غير متوفر لهذه الولاية.';
-                                 communeCenterErrorEl.classList.remove('hidden');
-                             }
+                  return;
 
-                         } else {
-                             throw new Error("لم يتم العثور على بيانات أسعار الشحن للبلدية الأولى.");
-                         }
-                     } else {
-                         // هذا الخطأ قد يعني أن API key خطأ أو أن Yalidine لا تدعم الولاية
-                          console.error("Fees data 'per_commune' is missing or empty.", feesDataResponse);
-                         throw new Error(feesDataResponse?.message || "الشحن غير متوفر حالياً لهذه الولاية. (e:2)");
-                     }
+             }
 
-                } catch (error) {
-                     console.error("Error fetching/processing shipping fees:", error);
-                     resetDeliveryOptions();
-                     communeCenterLoadingEl.classList.add('hidden');
-                     communeCenterErrorEl.textContent = error.message || "خطأ في حساب أسعار الشحن.";
-                     communeCenterErrorEl.classList.remove('hidden');
-                      showToast(error.message || "خطأ في حساب أسعار الشحن.", 'error');
-                }
-            });
+ 
 
-            // عند تغيير نوع التوصيل
-            deliveryTypeRadios.forEach(radio => {
-                radio.addEventListener('change', async () => {
-                    const selectedType = form.querySelector('input[name="delivery_type"]:checked').value;
-                    const wilayaId = wilayaSelect.value;
-                     currentShippingCost = null; // Reset cost until communes/centers are loaded and selected
-                     communeCenterSelect.innerHTML = '<option value="">-- تحميل الخيارات --</option>';
-                     communeCenterSelect.disabled = true;
-                     addressContainer.classList.add('hidden');
-                     checkoutAddressInput.required = false; // Reset address requirement
-                     communeCenterLoadingEl.classList.remove('hidden');
-                     communeCenterLoadingEl.textContent = 'جاري تحميل الخيارات...';
-                     communeCenterErrorEl.classList.add('hidden');
-                     submitBtn.disabled = true; // Disable submit while loading options
+             // إظهار التحميل وإخفاء الأخطاء السابقة
 
-                     let options = [];
-                     let errorMsg = null;
+             communeCenterLoadingEl.classList.remove('hidden');
 
-                     try {
-                         if (selectedType === 'home') {
-                             communeCenterLabel.textContent = 'البلدية *';
-                             communeCenterSelect.name = 'commune_or_center_name'; // Use appropriate name
-                             addressContainer.classList.remove('hidden');
-                             checkoutAddressInput.required = true;
-                             currentShippingCost = deliveryFees.home; // Set cost directly
+             communeCenterLoadingEl.textContent = 'جاري حساب أسعار الشحن...';
 
-                             const communeData = await fetchYalidineData('communes', { wilaya_id: wilayaId });
-                             options = communeData?.data || [];
-                             if (options.length === 0) errorMsg = 'لا توجد بلديات متاحة لهذه الولاية.';
+             communeCenterErrorEl.classList.add('hidden');
 
-                         } else { // office
-                             communeCenterLabel.textContent = 'مكتب الاستلام *';
-                             communeCenterSelect.name = 'commune_or_center_name'; // Use appropriate name
-                             // Address is not required for office delivery
-                             currentShippingCost = deliveryFees.desk; // Set cost directly
+              submitBtn.disabled = true; // Disable submit while loading fees
 
-                             const centerData = await fetchYalidineData('centers', { wilaya_id: wilayaId });
-                             options = centerData?.data || [];
-                             if (options.length === 0) errorMsg = 'لا توجد مكاتب استلام متاحة لهذه الولاية.';
-                         }
+ 
 
-                         // Populate dropdown
-                         communeCenterSelect.innerHTML = '<option value="">-- اختر --</option>';
-                         if (options.length > 0) {
-                             options.sort((a, b) => a.name.localeCompare(b.name, 'ar')); // Sort alphabetically
-                             options.forEach(opt => {
-                                 // For centers, the 'name' is the commune name where the center is located
-                                 communeCenterSelect.innerHTML += `<option value="${opt.name}">${opt.name}</option>`;
-                             });
-                             communeCenterSelect.disabled = false;
-                         } else {
-                             communeCenterSelect.innerHTML = `<option value="">${errorMsg || '-- لا توجد خيارات --'}</option>`;
-                             if (errorMsg) {
+             try {
+
+                  // جلب أسعار الشحن أولاً
+
+                  const feesDataResponse = await fetchYalidineData('fees', { to_wilaya_id: wilayaId });
+
+                  console.log("Fees Response:", feesDataResponse);
+
+ 
+
+                   // التحقق من وجود بيانات per_commune (هيكلية الاستجابة قد تختلف)
+
+                   // بناءً على كود PHP، نفترض أن الاستجابة تحتوي على كائن per_commune
+
+                   const feesData = feesDataResponse?.per_commune;
+
+ 
+
+                 if (feesData && Object.keys(feesData).length > 0) {
+
+                      // استخراج رسوم أول بلدية كمثال (كما في كود PHP)
+
+                       // تحتاج إلى التأكد من أن المفاتيح `express_home` و `express_desk` موجودة
+
+                      const firstCommuneFeesKey = Object.keys(feesData)[0];
+
+                      const firstCommuneFees = feesData[firstCommuneFeesKey];
+
+ 
+
+                      if (firstCommuneFees) {
+
+                          deliveryFees.home = firstCommuneFees.express_home ?? null; // Use null if undefined
+
+                          deliveryFees.desk = firstCommuneFees.express_desk ?? null;
+
+ 
+
+                          // تفعيل خيارات التوصيل بناءً على الأسعار المتاحة
+
+                          if (deliveryFees.desk !== null && deliveryFees.desk >= 0) {
+
+                              officeRadio.disabled = false;
+
+                              officeLabel.classList.remove('disabled');
+
+                              deskFeeDisplay.textContent = `${deliveryFees.desk.toLocaleString('fr-DZ')} دج`;
+
+                          } else {
+
+                              deskFeeDisplay.textContent = 'غير متاح';
+
+                          }
+
+                          if (deliveryFees.home !== null && deliveryFees.home >= 0) {
+
+                              homeRadio.disabled = false;
+
+                              homeLabel.classList.remove('disabled');
+
+                              homeFeeDisplay.textContent = `${deliveryFees.home.toLocaleString('fr-DZ')} دج`;
+
+                          } else {
+
+                              homeFeeDisplay.textContent = 'غير متاح';
+
+                          }
+
+ 
+
+                          // تحديد الخيار الأرخص (أو المكتب) كافتراضي إذا كان متاحاً
+
+                          if (deliveryFees.desk !== null && deliveryFees.desk >= 0) {
+
+                              officeRadio.checked = true;
+
+                              officeRadio.dispatchEvent(new Event('change', { bubbles:true })); // Trigger change event
+
+                          } else if (deliveryFees.home !== null && deliveryFees.home >= 0) {
+
+                              homeRadio.checked = true;
+
+                              homeRadio.dispatchEvent(new Event('change', { bubbles:true })); // Trigger change event
+
+                          } else {
+
+                              // No options available
+
+                              communeCenterLoadingEl.classList.add('hidden');
+
+                              communeCenterErrorEl.textContent = 'الشحن غير متوفر لهذه الولاية.';
+
+                              communeCenterErrorEl.classList.remove('hidden');
+
+                          }
+
+ 
+
+                      } else {
+
+                          throw new Error("لم يتم العثور على بيانات أسعار الشحن للبلدية الأولى.");
+
+                      }
+
+                 } else {
+
+                      // هذا الخطأ قد يعني أن API key خطأ أو أن Yalidine لا تدعم الولاية
+
+                       console.error("Fees data 'per_commune' is missing or empty.", feesDataResponse);
+
+                      throw new Error(feesDataResponse?.message || "الشحن غير متوفر حالياً لهذه الولاية. (e:2)");
+
+                 }
+
+ 
+
+             } catch (error) {
+
+                  console.error("Error fetching/processing shipping fees:", error);
+
+                  resetDeliveryOptions();
+
+                  communeCenterLoadingEl.classList.add('hidden');
+
+                  communeCenterErrorEl.textContent = error.message || "خطأ في حساب أسعار الشحن.";
+
+                  communeCenterErrorEl.classList.remove('hidden');
+
+                   showToast(error.message || "خطأ في حساب أسعار الشحن.", 'error');
+
+             }
+
+         });
+
+ 
+
+         // عند تغيير نوع التوصيل
+
+         deliveryTypeRadios.forEach(radio => {
+
+             radio.addEventListener('change', async () => {
+
+                  const selectedType = form.querySelector('input[name="delivery_type"]:checked').value;
+
+                  const wilayaId = wilayaSelect.value;
+
+                   currentShippingCost = null; // Reset cost until communes/centers are loaded and selected
+
+                   communeCenterSelect.innerHTML = '<option value="">-- تحميل الخيارات --</option>';
+
+                   communeCenterSelect.disabled = true;
+
+                   addressContainer.classList.add('hidden');
+
+                   checkoutAddressInput.required = false; // Reset address requirement
+
+                   communeCenterLoadingEl.classList.remove('hidden');
+
+                   communeCenterLoadingEl.textContent = 'جاري تحميل الخيارات...';
+
+                   communeCenterErrorEl.classList.add('hidden');
+
+                   submitBtn.disabled = true; // Disable submit while loading options
+
+ 
+
+                   let options = [];
+
+                   let errorMsg = null;
+
+ 
+
+                   try {
+
+                       if (selectedType === 'home') {
+
+                            communeCenterLabel.textContent = 'البلدية *';
+
+                            communeCenterSelect.name = 'commune_or_center_name'; // Use appropriate name
+
+                            addressContainer.classList.remove('hidden');
+
+                            checkoutAddressInput.required = true;
+
+                            currentShippingCost = deliveryFees.home; // Set cost directly
+
+ 
+
+                            const communeData = await fetchYalidineData('communes', { wilaya_id: wilayaId });
+
+                            options = communeData?.data || [];
+
+                            if (options.length === 0) errorMsg = 'لا توجد بلديات متاحة لهذه الولاية.';
+
+ 
+
+                       } else { // office
+
+                            communeCenterLabel.textContent = 'مكتب الاستلام *';
+
+                            communeCenterSelect.name = 'commune_or_center_name'; // Use appropriate name
+
+                            // Address is not required for office delivery
+
+                            currentShippingCost = deliveryFees.desk; // Set cost directly
+
+ 
+
+                            const centerData = await fetchYalidineData('centers', { wilaya_id: wilayaId });
+
+                            options = centerData?.data || [];
+
+                            if (options.length === 0) errorMsg = 'لا توجد مكاتب استلام متاحة لهذه الولاية.';
+
+                       }
+
+ 
+
+                       // Populate dropdown
+
+                       communeCenterSelect.innerHTML = '<option value="">-- اختر --</option>';
+
+                       if (options.length > 0) {
+
+                            options.sort((a, b) => a.name.localeCompare(b.name, 'ar')); // Sort alphabetically
+
+                            options.forEach(opt => {
+
+                                // For centers, the 'name' is the commune name where the center is located
+
+                                communeCenterSelect.innerHTML += `<option value="${opt.name}">${opt.name}</option>`;
+
+                            });
+
+                            communeCenterSelect.disabled = false;
+
+                       } else {
+
+                            communeCenterSelect.innerHTML = `<option value="">${errorMsg || '-- لا توجد خيارات --'}</option>`;
+
+                            if (errorMsg) {
+
                                  communeCenterErrorEl.textContent = errorMsg;
+
                                  communeCenterErrorEl.classList.remove('hidden');
-                             }
-                         }
 
-                    } catch (error) {
-                         console.error(`Error fetching ${selectedType === 'home' ? 'communes' : 'centers'}:`, error);
-                         errorMsg = `خطأ في تحميل قائمة ${selectedType === 'home' ? 'البلديات' : 'المكاتب'}.`;
-                         communeCenterSelect.innerHTML = `<option value="">${errorMsg}</option>`;
-                         communeCenterErrorEl.textContent = errorMsg;
-                         communeCenterErrorEl.classList.remove('hidden');
-                         showToast(errorMsg, 'error');
-                    } finally {
-                         communeCenterLoadingEl.classList.add('hidden');
-                         updateTotal(); // Update total cost (might enable submit button if options loaded and selected)
-                    }
-                });
-            });
+                            }
 
-             // Update total when commune/center is selected (ensure shipping cost is applied)
-             communeCenterSelect.addEventListener('change', () => {
-                 updateTotal(); // Just recalculate total and button state
+                       }
+
+ 
+
+                   } catch (error) {
+
+                        console.error(`Error fetching ${selectedType === 'home' ? 'communes' : 'centers'}:`, error);
+
+                        errorMsg = `خطأ في تحميل قائمة ${selectedType === 'home' ? 'البلديات' : 'المكاتب'}.`;
+
+                        communeCenterSelect.innerHTML = `<option value="">${errorMsg}</option>`;
+
+                        communeCenterErrorEl.textContent = errorMsg;
+
+                        communeCenterErrorEl.classList.remove('hidden');
+
+                        showToast(errorMsg, 'error');
+
+                   } finally {
+
+                        communeCenterLoadingEl.classList.add('hidden');
+
+                        updateTotal(); // Update total cost (might enable submit button if options loaded and selected)
+
+                   }
+
              });
 
+         });
 
-            // عند إرسال الفورم
-             form.addEventListener('submit', (e) => handleCheckoutSubmit(e, subTotal)); // Pass subTotal
-        };
+ 
 
-        // 11. إرسال الطلب (Checkout Submit) - باستخدام Firebase Transaction
-        const handleCheckoutSubmit = async (e, subTotal) => {
-            e.preventDefault();
-            const form = e.target;
-            const submitBtn = document.getElementById('submit-order-btn');
-            const submitBtnText = submitBtn.querySelector('.btn-text');
-            const submitBtnLoader = submitBtn.querySelector('.btn-loader');
+          // Update total when commune/center is selected (ensure shipping cost is applied)
 
-            // Basic form validation (HTML5 required should handle most)
-            if (!form.checkValidity()) {
-                showToast('يرجى ملء جميع الحقول المطلوبة بشكل صحيح.', 'error');
-                form.reportValidity(); // Show browser's default validation messages
+          communeCenterSelect.addEventListener('change', () => {
+
+               updateTotal(); // Just recalculate total and button state
+
+          });
+
+ 
+
+ 
+
+         // عند إرسال الفورم
+
+          form.addEventListener('submit', (e) => handleCheckoutSubmit(e, subTotal)); // Pass subTotal
+
+     };
+
+ 
+
+     // 11. إرسال الطلب (Checkout Submit) - باستخدام Firebase Transaction
+
+     const handleCheckoutSubmit = async (e, subTotal) => {
+
+          e.preventDefault();
+
+          const form = e.target;
+
+          const submitBtn = document.getElementById('submit-order-btn');
+
+          const submitBtnText = submitBtn.querySelector('.btn-text');
+
+          const submitBtnLoader = submitBtn.querySelector('.btn-loader');
+
+ 
+
+          // Basic form validation (HTML5 required should handle most)
+
+          if (!form.checkValidity()) {
+
+              showToast('يرجى ملء جميع الحقول المطلوبة بشكل صحيح.', 'error');
+
+              form.reportValidity(); // Show browser's default validation messages
+
+              return;
+
+          }
+
+           // Validate delivery type selection
+
+           const selectedDeliveryType = form.querySelector('input[name="delivery_type"]:checked');
+
+           if (!selectedDeliveryType) {
+
+                showToast('يرجى اختيار طريقة التوصيل.', 'error');
+
                 return;
-            }
-             // Validate delivery type selection
-             const selectedDeliveryType = form.querySelector('input[name="delivery_type"]:checked');
-             if (!selectedDeliveryType) {
-                 showToast('يرجى اختيار طريقة التوصيل.', 'error');
-                 return;
-             }
-             // Validate commune/center selection
-             const communeCenterSelect = document.getElementById('checkout-commune-center');
-             if (!communeCenterSelect.value) {
+
+           }
+
+            // Validate commune/center selection
+
+            const communeCenterSelect = document.getElementById('checkout-commune-center');
+
+            if (!communeCenterSelect.value) {
+
                  showToast(`يرجى اختيار ${selectedDeliveryType.value === 'home' ? 'البلدية' : 'مكتب الاستلام'}.`, 'error');
+
                  communeCenterSelect.focus();
+
                  return;
-             }
-             // Validate address if home delivery
-             const addressInput = document.getElementById('checkout-address');
-             if (selectedDeliveryType.value === 'home' && !addressInput.value.trim()) {
-                 showToast('يرجى إدخال عنوان التوصيل بالتفصيل.', 'error');
-                 addressInput.focus();
-                 return;
-             }
 
-            if(submitBtn) submitBtn.disabled = true;
-            if(submitBtnText) submitBtnText.classList.add('hidden');
-            if(submitBtnLoader) submitBtnLoader.classList.remove('hidden');
-
-             // استرداد السعر النهائي للشحن المحسوب
-             const finalShippingCostText = document.getElementById('shipping-cost').textContent;
-             const finalShippingCostMatch = finalShippingCostText.match(/([\d,]+(?:\.\d+)?)/); // Extract number
-             const finalShippingCost = finalShippingCostMatch ? parseFloat(finalShippingCostMatch[1].replace(',', '.')) : null; // Handle potential locale differences
-
-             if (finalShippingCost === null || finalShippingCost < 0) {
-                 showToast('خطأ في سعر الشحن. يرجى إعادة تحديد الولاية.', 'error');
-                 if(submitBtn) submitBtn.disabled = false;
-                 if(submitBtnText) submitBtnText.classList.remove('hidden');
-                 if(submitBtnLoader) submitBtnLoader.classList.add('hidden');
-                 return;
-             }
-
-             // --- حفظ الطلب وتقليل المخزون (Firebase Transaction) ---
-             try {
-                 const wilayaOption = document.querySelector(`#checkout-wilaya option[value="${form.wilaya_id.value}"]`);
-                 const orderData = {
-                     // لا نضع ID هنا، Firestore سيقوم بإنشائه
-                     createdAt: serverTimestamp(), // Use server timestamp
-                     name: form.name.value,
-                     phone: form.phone.value,
-                     wilaya: wilayaOption ? wilayaOption.dataset.name : `ID: ${form.wilaya_id.value}`, // اسم الولاية
-                     commune: form.commune_or_center_name.value, // اسم البلدية أو المكتب
-                     address: selectedDeliveryType.value === 'home' ? form.address.value : `استلام من مكتب Yalidine (${form.commune_or_center_name.value})`, // عنوان أو ملاحظة المكتب
-                     delivery_type: selectedDeliveryType.value, // 'home' or 'office'
-                     cart: state.cart.map(item => ({ // نسخ بيانات السلة اللازمة
-                         ...item,
-                         selectedOptions: item.optionsText ? item.optionsText.split(' / ').map(opt => ({ value: opt })) : [] // للحفظ
-                     })),
-                     shipping_cost: finalShippingCost,
-                     grand_total: subTotal + finalShippingCost,
-                     status: 'pending', // الحالة الأولية
-                     yalidine_tracking_id: null,
-                     userId: userId // ربط الطلب بالمستخدم (حتى لو كان مجهولاً)
-                 };
-
-                 // تنفيذ Transaction لحفظ الطلب وتحديث المخزون
-                 await runTransaction(db, async (transaction) => {
-                     // 1. تحقق من المخزون وجلب مراجع المنتجات
-                     const productRefsToUpdate = new Map(); // Map<string, {ref: DocumentReference, data: any}>
-                     for (const item of orderData.cart) {
-                         const productRef = doc(db, 'products', item.product_id);
-                         const productSnap = await transaction.get(productRef);
-
-                         if (!productSnap.exists()) {
-                             throw new Error(`المنتج: ${item.title} لم يعد متوفراً!`);
-                         }
-
-                         const productData = productSnap.data();
-                         const variantIndex = productData.variants.findIndex(v => v.id == item.variant_id);
-
-                         if (variantIndex === -1) {
-                             throw new Error(`الخيار: ${item.optionsText} للمنتج ${item.title} لم يعد متوفراً!`);
-                         }
-
-                         const variant = productData.variants[variantIndex];
-                         if (variant.stock_quantity < item.quantity) {
-                              throw new Error(`المخزون لم يعد كافياً للمنتج: ${item.title} (${item.optionsText}). المتبقي: ${variant.stock_quantity}`);
-                         }
-
-                         // تجهيز التحديث
-                         productData.variants[variantIndex].stock_quantity -= item.quantity;
-                         productRefsToUpdate.set(item.product_id, { ref: productRef, data: productData });
-                     }
-
-                     // 2. حفظ الطلب الجديد
-                     const newOrderRef = doc(collection(db, "orders")); // إنشاء مرجع لطلب جديد
-                     transaction.set(newOrderRef, orderData);
-                     orderData.id = newOrderRef.id; // حفظ الـ ID لعرضه في رسالة النجاح (مؤقتاً)
-
-                     // 3. تحديث مخزون جميع المنتجات
-                     productRefsToUpdate.forEach(updateInfo => {
-                         transaction.update(updateInfo.ref, { variants: updateInfo.data.variants, updatedAt: serverTimestamp() });
-                     });
-                 });
-
-                 // --- بعد نجاح الـ Transaction ---
-                 console.log("Order submitted successfully!");
-
-                 // 4. إفراغ السلة المحلية
-                 state.cart = [];
-                 localDb.set('cart', []);
-                 updateCartBadge();
-
-                 // 5. عرض رسالة النجاح
-                 showModal(`
-                     <div class="p-4 text-center">
-                         <i data-lucide="check-circle" class="w-16 h-16 text-green-500 mx-auto mb-4"></i>
-                         <h3 class="text-2xl font-bold mb-2">تم إرسال طلبك بنجاح!</h3>
-                         <p class="text-gray-600 mb-6">شكراً لثقتكم. سنتصل بكم قريباً لتأكيد الطلب. رقم طلبك هو <strong class="font-bold text-gray-900">#${orderData.id.slice(-6)}</strong>.</p>
-                         <button class="modal-close-btn w-full bg-gray-900 text-white py-2 px-4 rounded-md font-medium hover:bg-gray-800 transition-colors">
-                             متابعة التسوق
-                         </button>
-                     </div>
-                 `, 'max-w-md'); // Larger modal for success
-
-                 // 6. إضافة مستمع لإغلاق المودال والعودة للرئيسية
-                 document.querySelector('#modal-container .modal-close-btn').addEventListener('click', () => {
-                     hideModal();
-                     goTo('#/');
-                 });
-
-            } catch (error) {
-                 console.error("Checkout failed:", error);
-                 showToast(error.message || 'حدث خطأ أثناء معالجة الطلب.', 'error', 5000);
-                 if(submitBtn) submitBtn.disabled = false; // Re-enable button on error
-                 if(submitBtnText) submitBtnText.classList.remove('hidden');
-                 if(btnLoader) btnLoader.classList.add('hidden');
             }
-        };
 
+             // Validate address if home delivery
 
-        // ==========================================
-        // بدء تشغيل التطبيق
-        // ==========================================
-        // ابدأ بتهيئة Firebase، الذي سيقوم بدوره بتهيئة واجهة المستخدم
-        initializeFirebase();
+             const addressInput = document.getElementById('checkout-address');
 
-    </script>
+              if (selectedDeliveryType.value === 'home' && !addressInput.value.trim()) {
 
-</body>
-</html>
+                  showToast('يرجى إدخال عنوان التوصيل بالتفصيل.', 'error');
+
+                  addressInput.focus();
+
+                  return;
+
+              }
+
+ 
+
+         if(submitBtn) submitBtn.disabled = true;
+
+         if(submitBtnText) submitBtnText.classList.add('hidden');
+
+         if(submitBtnLoader) submitBtnLoader.classList.remove('hidden');
+
+ 
+
+           // استرداد السعر النهائي للشحن المحسوب
+
+           const finalShippingCostText = document.getElementById('shipping-cost').textContent;
+
+           const finalShippingCostMatch = finalShippingCostText.match(/([\d,]+(?:\.\d+)?)/); // Extract number
+
+           const finalShippingCost = finalShippingCostMatch ? parseFloat(finalShippingCostMatch[1].replace(',', '.')) : null; // Handle potential locale differences
+
+ 
+
+            if (finalShippingCost === null || finalShippingCost < 0) {
+
+                showToast('خطأ في سعر الشحن. يرجى إعادة تحديد الولاية.', 'error');
+
+                if(submitBtn) submitBtn.disabled = false;
+
+                if(submitBtnText) submitBtnText.classList.remove('hidden');
+
+                if(btnLoader) btnLoader.classList.add('hidden');
+
+                return;
+
+            }
+
+ 
+
+           // --- حفظ الطلب وتقليل المخزون (Firebase Transaction) ---
+
+           try {
+
+               const wilayaOption = document.querySelector(`#checkout-wilaya option[value="${form.wilaya_id.value}"]`);
+
+               const orderData = {
+
+                   // لا نضع ID هنا، Firestore سيقوم بإنشائه
+
+                   createdAt: serverTimestamp(), // Use server timestamp
+
+                   name: form.name.value,
+
+                   phone: form.phone.value,
+
+                   wilaya: wilayaOption ? wilayaOption.dataset.name : `ID: ${form.wilaya_id.value}`, // اسم الولاية
+
+                   commune: form.commune_or_center_name.value, // اسم البلدية أو المكتب
+
+                   address: selectedDeliveryType.value === 'home' ? form.address.value : `استلام من مكتب Yalidine (${form.commune_or_center_name.value})`, // عنوان أو ملاحظة المكتب
+
+                   delivery_type: selectedDeliveryType.value, // 'home' or 'office'
+
+                   cart: state.cart.map(item => ({ // نسخ بيانات السلة اللازمة
+
+                       ...item,
+
+                       selectedOptions: item.optionsText ? item.optionsText.split(' / ').map(opt => ({ value: opt })) : [] // للحفظ
+
+                   })),
+
+                   shipping_cost: finalShippingCost,
+
+                   grand_total: subTotal + finalShippingCost,
+
+                   status: 'pending', // الحالة الأولية
+
+                   yalidine_tracking_id: null,
+
+                   userId: userId // ربط الطلب بالمستخدم (حتى لو كان مجهولاً)
+
+               };
+
+ 
+
+               // تنفيذ Transaction لحفظ الطلب وتحديث المخزون
+
+               await runTransaction(db, async (transaction) => {
+
+                   // 1. تحقق من المخزون وجلب مراجع المنتجات
+
+                   const productRefsToUpdate = new Map(); // Map<string, {ref: DocumentReference, data: any}>
+
+                   for (const item of orderData.cart) {
+
+                       const productRef = doc(db, 'products', item.product_id);
+
+                       const productSnap = await transaction.get(productRef);
+
+ 
+
+                       if (!productSnap.exists()) {
+
+                           throw new Error(`المنتج: ${item.title} لم يعد متوفراً!`);
+
+                       }
+
+ 
+
+                       const productData = productSnap.data();
+
+                       const variantIndex = productData.variants.findIndex(v => v.id == item.variant_id);
+
+ 
+
+                       if (variantIndex === -1) {
+
+                           throw new Error(`الخيار: ${item.optionsText} للمنتج ${item.title} لم يعد متوفراً!`);
+
+                       }
+
+ 
+
+                       const variant = productData.variants[variantIndex];
+
+                       if (variant.stock_quantity < item.quantity) {
+
+                            throw new Error(`المخزون لم يعد كافياً للمنتج: ${item.title} (${item.optionsText}). المتبقي: ${variant.stock_quantity}`);
+
+                       }
+
+ 
+
+                       // تجهيز التحديث
+
+                       productData.variants[variantIndex].stock_quantity -= item.quantity;
+
+                       productRefsToUpdate.set(item.product_id, { ref: productRef, data: productData });
+
+                   }
+
+ 
+
+                   // 2. حفظ الطلب الجديد
+
+                   const newOrderRef = doc(collection(db, "orders")); // إنشاء مرجع لطلب جديد
+
+                   transaction.set(newOrderRef, orderData);
+
+                   orderData.id = newOrderRef.id; // حفظ الـ ID لعرضه في رسالة النجاح (مؤقتاً)
+
+ 
+
+                   // 3. تحديث مخزون جميع المنتجات
+
+                   productRefsToUpdate.forEach(updateInfo => {
+
+                       transaction.update(updateInfo.ref, { variants: updateInfo.data.variants, updatedAt: serverTimestamp() });
+
+                   });
+
+               });
+
+ 
+
+               // --- بعد نجاح الـ Transaction ---
+
+               console.log("Order submitted successfully!");
+
+ 
+
+               // 4. إفراغ السلة المحلية
+
+               state.cart = [];
+
+               localDb.set('cart', []);
+
+               updateCartBadge();
+
+ 
+
+               // 5. عرض رسالة النجاح
+
+               showModal(`
+
+                   <div class="p-4 text-center">
+
+                       <i data-lucide="check-circle" class="w-16 h-16 text-green-500 mx-auto mb-4"></i>
+
+                       <h3 class="text-2xl font-bold mb-2">تم إرسال طلبك بنجاح!</h3>
+
+                       <p class="text-gray-600 mb-6">شكراً لثقتكم. سنتصل بكم قريباً لتأكيد الطلب. رقم طلبك هو <strong class="font-bold text-gray-900">#${orderData.id.slice(-6)}</strong>.</p>
+
+                       <button class="modal-close-btn w-full bg-gray-900 text-white py-2 px-4 rounded-md font-medium hover:bg-gray-800 transition-colors">
+
+                           متابعة التسوق
+
+                       </button>
+
+                   </div>
+
+               `, 'max-w-md'); // Larger modal for success
+
+ 
+
+               // 6. إضافة مستمع لإغلاق المودال والعودة للرئيسية
+
+               document.querySelector('#modal-container .modal-close-btn').addEventListener('click', () => {
+
+                   hideModal();
+
+                   goTo('#/');
+
+               });
+
+ 
+
+           } catch (error) {
+
+               console.error("Checkout failed:", error);
+
+               showToast(error.message || 'حدث خطأ أثناء معالجة الطلب.', 'error', 5000);
+
+               if(submitBtn) submitBtn.disabled = false; // Re-enable button on error
+
+               if(submitBtnText) submitBtnText.classList.remove('hidden');
+
+               if(btnLoader) btnLoader.classList.add('hidden');
+
+           }
+
+     };
+
+     initializeFirebase();
+ </script>
+
+ </body>
+
+ </html>
+                                

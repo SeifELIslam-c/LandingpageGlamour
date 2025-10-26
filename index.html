@@ -3000,15 +3000,15 @@
                                      </div>
                                      <!-- أزرار الكمية -->
                                      <div class="flex items-center justify-between sm:justify-start space-x-2 space-x-reverse mt-2">
-                                         <div class="inline-flex items-center border border-gray-300 rounded-md">
-                                             <button data-action="decrease" class="p-1.5 text-gray-600 hover:bg-gray-100 rounded-r-md disabled:opacity-50 disabled:cursor-not-allowed" ${item.quantity <= 1 ? 'disabled' : ''}>
-                                                  <i data-lucide="minus" class="w-4 h-4 pointer-events-none"></i>
-                                             </button>
-                                             <span class="font-medium w-10 text-center text-sm">${item.quantity}</span>
-                                             <button data-action="increase" class="p-1.5 text-gray-600 hover:bg-gray-100 rounded-l-md disabled:opacity-50 disabled:cursor-not-allowed" ${item.quantity >= item.stock ? 'disabled' : ''}>
-                                                  <i data-lucide="plus" class="w-4 h-4 pointer-events-none"></i>
-                                             </button>
-                                         </div>
+                                         <div class="inline-flex items-center border border-gray-300 rounded-md overflow-hidden"> {/* Added overflow-hidden */}
+                      <button data-action="decrease" class="px-2 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed border-l border-gray-300" ${item.quantity <= 1 ? 'disabled' : ''}> {/* Adjusted padding/border */}
+                                             <i data-lucide="minus" class="w-4 h-4 inline-block"></i> {/* Removed pointer-events-none, added inline-block */}
+                      </button>
+                      <span class="font-medium w-10 text-center text-sm px-2 py-1">${item.quantity}</span> {/* Added padding */}
+                      <button data-action="increase" class="px-2 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed border-r border-gray-300" ${item.quantity >= item.stock ? 'disabled' : ''}> {/* Adjusted padding/border */}
+                         <i data-lucide="plus" class="w-4 h-4 inline-block"></i> {/* Removed pointer-events-none, added inline-block */}
+                      </button>
+                        </div>
                                          <button data-action="remove" class="text-xs text-red-600 hover:text-red-800 hover:underline sm:ml-4">
                                              إزالة
                                          </button>
@@ -3221,35 +3221,21 @@
 
 وحتى نهاية الملف </html>.
 
-                                 <div class="space-y-3 max-h-48 overflow-y-auto mb-4 pr-2 border-b pb-4">
-
-                                     ${state.cart.map(item => `
-
-                                         <div class="flex items-center space-x-3 space-x-reverse">
-
-                                             <div class="relative flex-shrink-0">
-
-                                                 <img src="${item.image_url}" alt="${item.title}" class="w-12 h-14 object-cover rounded-md border">
-
-                                                 <span class="absolute -top-2 -right-2 bg-gray-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">${item.quantity}</span>
-
-                                             </div>
-
-                                             <div class="flex-1 min-w-0">
-
-                                                 <p class="text-sm font-medium text-gray-800 truncate">${item.title}</p>
-
-                                                 <p class="text-xs text-gray-500 truncate">${item.optionsText}</p>
-
-                                             </div>
-
-                                             <p class="text-sm font-medium flex-shrink-0" dir="ltr">${(item.price * item.quantity).toLocaleString('fr-DZ')} DZD</p>
-
-                                         </div>
-
-                                     `).join('')}
-
-                                 </div>
+                                 <div class="space-y-3 mb-4 pr-2 border-b pb-4">
+                            ${state.cart.map(item => `
+                                <div class="flex items-center space-x-3 space-x-reverse">
+                                    <div class="relative flex-shrink-0">
+                                        <img src="${item.image_url}" alt="${item.title}" class="w-12 h-14 object-cover rounded-md border">
+                                        <span class="absolute -top-2 -right-2 bg-gray-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">${item.quantity}</span>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-gray-800 truncate">${item.title}</p>
+                                        <p class="text-xs text-gray-500 truncate">${item.optionsText}</p>
+                                    </div>
+                                    <p class="text-sm font-medium flex-shrink-0" dir="ltr">${(item.price * item.quantity).toLocaleString('fr-DZ')} DZD</p>
+                                </div>
+                            `).join('')}
+                        </div>
 
                                  <!-- Totals -->
 

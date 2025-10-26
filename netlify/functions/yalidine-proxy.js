@@ -3,24 +3,21 @@
 exports.handler = async (event, context) => {
   const { YALIDINE_API_ID, YALIDINE_API_TOKEN } = process.env;
 
-  // --- بداية التعديل: استخراج المسار من event.path ---
+  // --- بداية التعديل: استخلاص المسار مباشرة من event.path ---
 
-  // 1. احصل على المسار الكامل للطلب كما تراه الدالة
-  const functionPath = event.path; // e.g., /.netlify/functions/yalidine-proxy/wilayas
-  console.log("Function Path:", functionPath);
+  // 1. احصل على المسار الكامل للطلب الأصلي (e.g., /yalidine-api/wilayas)
+  const originalRequestPath = event.path;
+  console.log("Original Request Path (event.path):", originalRequestPath);
 
-  // 2. استخرج الجزء الذي يأتي *بعد* اسم الدالة
-  const functionBasePath = '/.netlify/functions/yalidine-proxy';
+  // 2. استخرج الجزء الذي يأتي *بعد* /yalidine-api/
+  const proxyPrefix = '/yalidine-api/';
   let path = '';
-  if (functionPath.startsWith(functionBasePath + '/')) {
-      path = functionPath.substring(functionBasePath.length + 1); // Get the part after the function name + slash
-  } else if (functionPath === functionBasePath) {
-      // Handle cases where no path is provided after the function name (might be an error or root request)
-      path = ''; // Or handle as appropriate, maybe default path?
+  if (originalRequestPath && originalRequestPath.startsWith(proxyPrefix)) {
+      path = originalRequestPath.substring(proxyPrefix.length); // Get the part after /yalidine-api/
   }
-  console.log("Extracted Path from event.path:", path); // Should be 'wilayas'
+  console.log("Extracted Path:", path); // Should now be 'wilayas'
 
-  // إزالة الشرطة المائلة الأولى إن وجدت (احتياطي إضافي)
+  // إزالة الشرطة المائلة الأولى إن وجدت (احتياطي)
   if (path.startsWith('/')) {
       path = path.substring(1);
   }

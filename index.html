@@ -842,53 +842,62 @@
         };
 
         // دالة fetch مع معالجة الأخطاء الأساسية (لـ Yalidine Proxy)
-        const apiFetch = async (endpoint, options = {}) => {
-            // المفاتيح السرية لم تعد تُرسل من هنا، بل من Netlify Function
-            const headers = {
-                'Content-Type': 'application/json',
+        // دالة fetch مع معالجة الأخطاء الأساسية (لـ Yalidine Proxy)
+         const apiFetch = async (endpoint, options = {}) => {
+             // المفاتيح السرية لم تعد تُرسل من هنا، بل من Netlify Function
+             const headers = {
+                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                ...options.headers,
+                 ...options.headers,
+                 };
+
+               // استخدام بروكسي Netlify
+               const YALIDINE_BASE_URL = '/yalidine-api'; // هذا المسار سيوجه الطلب إلى الدالة netlify/functions/yalidine-proxy.js
+               const url = `${YALIDINE_BASE_URL}${endpoint}`; // استخدام المسار النسبي للبروكسي
+
+               try {
+                     console.log(`Fetching via Proxy: ${url} with params:`, options.params);
+                     const queryParams = new URLSearchParams(options.params || {}).toString();
+                     // تمرير البارامترات في الرابط للدالة (الدالة ستفصل المسار عن البارامترات)
+                     const fullUrl = queryParams ? `${url}?${queryParams}` : url;
+
+                     // *** بداية التعديل لحل مشكلة 400 Bad Request ***
+                     const fetchOptions = {
+                           method: options.method || 'GET',
+                           headers: headers,
+                     };
+
+                     // أضف الـ body فقط إذا كان موجوداً ولم يكن الطلب GET
+                     if (options.body && fetchOptions.method !== 'GET') {
+                           fetchOptions.body = JSON.stringify(options.body);
+                     }
+                     
+                     const response = await fetch(fullUrl, fetchOptions);
+                     // *** نهاية التعديل ***
+
+                     if (!response.ok) {
+                           let errorData;
+                           try {
+                              errorData = await response.json();
+                           } catch(e) {
+                               // Fallback if response is not JSON
+                               errorData = { message: `خطأ ${response.status}: ${response.statusText || 'فشل الاتصال بخادم الشحن'}` };
+                           }
+                           console.error('API Error Response (from browser fetch):', errorData, 'Status:', response.status);
+                           // استخدم رسالة الخطأ من البروكسي إن وجدت، أو رسالة عامة
+                           throw new Error(errorData.message || `خطأ ${response.status} عند الاتصال بخادم الشحن.`);
+                     }
+                     const data = await response.json();
+                     console.log('API Success Response (from browser fetch):', data);
+                     return data;
+
+               } catch (error) {
+                     console.error(`API Fetch Error (${url}):`, error);
+                     // لا تعرض رسالة toast هنا دائماً، قد يتم التعامل معها في مكان الاستدعاء
+                     // showToast(`خطأ في الاتصال بخادم الشحن: ${error.message}`, 'error');
+                     throw error; // أعد رمي الخطأ ليتم التعامل معه
+               }
             };
-
-            // استخدام بروكسي Netlify
-            const YALIDINE_BASE_URL = '/yalidine-api'; // هذا المسار سيوجه الطلب إلى الدالة netlify/functions/yalidine-proxy.js
-            const url = `${YALIDINE_BASE_URL}${endpoint}`; // استخدام المسار النسبي للبروكسي
-
-            try {
-                console.log(`Fetching via Proxy: ${url} with params:`, options.params);
-                const queryParams = new URLSearchParams(options.params || {}).toString();
-                // تمرير البارامترات في الرابط للدالة (الدالة ستفصل المسار عن البارامترات)
-                const fullUrl = queryParams ? `${url}?${queryParams}` : url;
-
-                const response = await fetch(fullUrl, {
-                    method: options.method || 'GET',
-                    headers: headers,
-                    body: options.body ? JSON.stringify(options.body) : null,
-                });
-
-                if (!response.ok) {
-                    let errorData;
-                    try {
-                        errorData = await response.json();
-                    } catch(e) {
-                         // Fallback if response is not JSON
-                         errorData = { message: `خطأ ${response.status}: ${response.statusText || 'فشل الاتصال بخادم الشحن'}` };
-                    }
-                    console.error('API Error Response (from browser fetch):', errorData, 'Status:', response.status);
-                    // استخدم رسالة الخطأ من البروكسي إن وجدت، أو رسالة عامة
-                    throw new Error(errorData.message || `خطأ ${response.status} عند الاتصال بخادم الشحن.`);
-                }
-                const data = await response.json();
-                console.log('API Success Response (from browser fetch):', data);
-                return data;
-
-            } catch (error) {
-                console.error(`API Fetch Error (${url}):`, error);
-                // لا تعرض رسالة toast هنا دائماً، قد يتم التعامل معها في مكان الاستدعاء
-                // showToast(`خطأ في الاتصال بخادم الشحن: ${error.message}`, 'error');
-                throw error; // أعد رمي الخطأ ليتم التعامل معه
-            }
-        };
 
 
         // دالة لجلب بيانات Yalidine مع التخزين المؤقت (Caching)

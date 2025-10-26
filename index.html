@@ -188,26 +188,28 @@
         <!-- =========== رأس الصفحة (Header) للعميل =========== -->
         <!-- ====================================================== -->
         <header id="customer-header" class="bg-white shadow-sm sticky top-0 z-40">
-            <nav class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between items-center h-16">
-                    <!-- اللوجو -->
-                    <a href="#/" class="text-2xl font-bold text-gray-900">Boutique Glamour</a>
+          <nav class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div class="flex justify-between items-center h-16">
+                  <!-- اللوجو -->
+                  <a href="#/" class="text-2xl font-bold text-gray-900">Boutique Glamour</a>
 
-                    <!-- روابط التنقل -->
-                    <div class="flex items-center space-x-6" dir="ltr">
-                        <a href="#/" class="text-gray-600 hover:text-blue-600 font-medium transition-colors">المتجر</a>
-                        <a href="#/cart" class="relative text-gray-600 hover:text-blue-600 transition-colors">
-                            <i data-lucide="shopping-cart" class="w-6 h-6"></i>
-                            <span id="cart-count-badge" class="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
-                        </a>
-                        <!-- رابط الأدمن - يمكن إخفاؤه لاحقاً إذا أردت -->
-                        <a href="#/admin" class="text-gray-400 hover:text-gray-700 transition-colors" title="لوحة التحكم">
-                            <i data-lucide="user-cog" class="w-6 h-6"></i>
-                        </a>
-                    </div>
-                </div>
-            </nav>
-        </header>
+                  <!-- روابط التنقل -->
+                  <div class="flex items-center space-x-6" dir="ltr">
+                      <!-- *** تعديل: التأكد من أن رابط المتجر صحيح *** -->
+                      <a href="#/" class="text-gray-600 hover:text-blue-600 font-medium transition-colors">المتجر</a>
+                      <a href="#/cart" class="relative text-gray-600 hover:text-blue-600 transition-colors">
+                          <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+                          <span id="cart-count-badge" class="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                      </a>
+                      <!-- رابط الأدمن - يمكن إخفاؤه لاحقاً إذا أردت -->
+                      <a href="#/admin" class="text-gray-400 hover:text-gray-700 transition-colors" title="لوحة التحكم">
+                          <i data-lucide="user-cog" class="w-6 h-6"></i>
+                      </a>
+                  </div>
+              </div>
+          </nav>
+      </header>
+
 
         <!-- ====================================================== -->
         <!-- =========== رأس الصفحة (Header) للأدمن =========== -->
@@ -560,48 +562,57 @@
         
         // 4. إعداد مستمعي Firestore (للتحديثات الحية)
         function setupFirestoreListeners() {
-            if (productsUnsubscribe) productsUnsubscribe();
-            if (ordersUnsubscribe) ordersUnsubscribe();
+          if (productsUnsubscribe) productsUnsubscribe();
+          if (ordersUnsubscribe) ordersUnsubscribe();
 
-            // الاستماع للمنتجات
-            productsUnsubscribe = onSnapshot(productsCollection, (snapshot) => {
-                console.log("Products updated from Firestore");
-                const productsFromDb = [];
-                snapshot.forEach((doc) => {
-                    productsFromDb.push({ ...doc.data(), id: doc.id }); 
-                });
-                state.products = productsFromDb;
-                
-                if (!state.appReady) {
-                     // هذا هو أول تحميل للبيانات، شغل الراوتر الآن
-                     state.appReady = true; 
-                     router(); 
-                } else {
-                    // البيانات تحدثت، أعد عرض الصفحة الحالية إذا كانت تعتمد على المنتجات
-                    rerenderCurrentPageIfProductDependent();
-                }
-            }, (error) => {
-                console.error("Error listening to products:", error);
-                showToast("خطأ في تحميل المنتجات.", "error");
-                state.appReady = true; // اعتبره جاهزاً حتى لو فشل
-                router(); // شغل الراوتر لعرض رسالة الخطأ
-            });
+          // الاستماع للمنتجات (تبقى كما هي)
+          productsUnsubscribe = onSnapshot(productsCollection, (snapshot) => {
+              console.log("Products updated from Firestore");
+              const productsFromDb = [];
+              snapshot.forEach((doc) => {
+                  productsFromDb.push({ ...doc.data(), id: doc.id });
+              });
+              state.products = productsFromDb;
 
-            // الاستماع للطلبات
-            ordersUnsubscribe = onSnapshot(ordersCollection, (snapshot) => {
-                console.log("Orders updated from Firestore");
-                const ordersFromDb = [];
-                snapshot.forEach((doc) => {
-                    ordersFromDb.push({ ...doc.data(), id: doc.id });
-                });
-                state.orders = ordersFromDb;
-                // إعادة عرض الصفحة الحالية إذا كانت تعتمد على الطلبات
-                rerenderCurrentPageIfOrderDependent();
-            }, (error) => {
-                console.error("Error listening to orders:", error);
-                // لا تزعج المستخدم العادي بهذا الخطأ
-            });
-        }
+              if (!state.appReady) {
+                  // هذا هو أول تحميل للبيانات، شغل الراوتر الآن
+                  state.appReady = true;
+                  router();
+              } else {
+                  // البيانات تحدثت، أعد عرض الصفحة الحالية إذا كانت تعتمد على المنتجات
+                  rerenderCurrentPageIfProductDependent();
+              }
+          }, (error) => {
+              console.error("Error listening to products:", error);
+              showToast("خطأ في تحميل المنتجات.", "error");
+              state.appReady = true; // اعتبره جاهزاً حتى لو فشل
+              router(); // شغل الراوتر لعرض رسالة الخطأ
+          });
+
+          // *** تعديل: الاستماع للطلبات فقط إذا كان المستخدم أدمن ***
+          if (isAdmin()) {
+              console.log("Admin detected, listening to all orders.");
+              ordersUnsubscribe = onSnapshot(ordersCollection, (snapshot) => {
+                  console.log("Orders updated from Firestore for Admin");
+                  const ordersFromDb = [];
+                  snapshot.forEach((doc) => {
+                      ordersFromDb.push({ ...doc.data(), id: doc.id });
+                  });
+                  state.orders = ordersFromDb;
+                  // إعادة عرض الصفحة الحالية إذا كانت تعتمد على الطلبات
+                  rerenderCurrentPageIfOrderDependent();
+              }, (error) => {
+                  console.error("Error listening to orders (Admin):", error);
+                  // يمكن عرض رسالة خطأ للأدمن هنا إذا لزم الأمر
+                  showToast("خطأ في تحميل الطلبات.", "error");
+              });
+          } else {
+              // المستخدم العادي لا يحتاج للاستماع لجميع الطلبات هنا
+              console.log("Regular user detected, not listening to all orders.");
+              state.orders = []; // أفرغ قائمة الطلبات المحلية للمستخدم العادي
+              // إذا احتجت لعرض طلبات المستخدم الخاصة لاحقاً، ستحتاج لـ query مختلف
+          }
+      }
 
         // دالة لإعادة عرض الصفحة الحالية (تحسين السلاسة)
         function rerenderCurrentPageIfProductDependent() {
@@ -646,122 +657,126 @@
 
         // 5. الراوتر (Router) لإدارة الصفحات
         const router = () => {
-             // لا تقم بتشغيل الراوتر قبل جاهزية التطبيق، إلا لصفحة الأدمن
-             if (!state.appReady && !(window.location.hash.startsWith('#/admin'))) {
-                 console.log("App not ready, router execution delayed.");
-                 // تأكد من أن loader المتجر ظاهر إذا كنا في الصفحة الرئيسية
-                 const shopLoader = document.getElementById('shop-loader');
-                 if(shopLoader) shopLoader.classList.remove('hidden');
-                 return;
-             }
+          // لا تقم بتشغيل الراوتر قبل جاهزية التطبيق، إلا لصفحة الأدمن
+          if (!state.appReady && !(window.location.hash.startsWith('#/admin'))) {
+              console.log("App not ready, router execution delayed.");
+              // تأكد من أن loader المتجر ظاهر إذا كنا في الصفحة الرئيسية
+              const shopLoader = document.getElementById('shop-loader');
+              if(shopLoader) shopLoader.classList.remove('hidden');
+              return;
+          }
 
-            // إخفاء جميع الصفحات
-            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+          const hash = window.location.hash || '#/';
+          let pageId = '';
+          let params = null;
 
-            // التحقق من حالة تسجيل دخول الأدمن
-            const admin = isAdmin();
-             // التأكد من وجود العناصر قبل محاولة تعديلها
-             const customerHeader = document.getElementById('customer-header');
-             const adminHeader = document.getElementById('admin-header');
-             if (customerHeader) customerHeader.classList.toggle('hidden', admin);
-             if (adminHeader) adminHeader.classList.toggle('hidden', !admin);
+          // *** تعديل: التحقق من كون الصفحة صفحة أدمن قبل إظهار الهيدر ***
+          const isAdminPage = hash.startsWith('#/admin');
+          const adminLoggedIn = isAdmin(); // تحقق مما إذا كان الأدمن مسجل دخوله
+
+          // إظهار/إخفاء الهيدرات بناءً على نوع الصفحة وحالة تسجيل الدخول
+          const customerHeader = document.getElementById('customer-header');
+          const adminHeader = document.getElementById('admin-header');
+          if (customerHeader) customerHeader.classList.toggle('hidden', isAdminPage && adminLoggedIn); // إخفاء هيدر العميل فقط إذا كنا في صفحة أدمن والأدمن مسجل
+          if (adminHeader) adminHeader.classList.toggle('hidden', !isAdminPage || !adminLoggedIn); // إظهار هيدر الأدمن فقط إذا كنا في صفحة أدمن والأدمن مسجل
 
 
-            const hash = window.location.hash || '#/';
-            let pageId = '';
-            let params = null;
+          // إخفاء جميع الصفحات أولاً
+          document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
 
-            // --- توجيه العميل ---
-            if (hash === '#/') {
-                pageId = 'page-shop';
-                renderShopPage();
-            } else if (hash.startsWith('#/product/')) {
-                pageId = 'page-product-detail';
-                params = hash.split('/')[2];
-                renderProductDetailPage(params); // ستعرض Loader داخلياً وتجلب المنتج
-            } else if (hash === '#/cart') {
-                pageId = 'page-cart';
-                renderCartPage(); // تقرأ من state.cart (localStorage)
-            } else if (hash === '#/checkout') {
-                pageId = 'page-checkout';
-                renderCheckoutPage(); // تحتاج لجلب الولايات
-            }
-            // --- توجيه الأدمن ---
-            else if (hash === '#/admin') {
-                pageId = 'page-admin-login';
-                if (admin) { goTo('#/admin/dashboard'); return; } // إعادة توجيه إذا كان مسجلاً
-                // ربط مستمع فورم تسجيل الدخول عند عرض الصفحة
-                setTimeout(() => {
-                    const loginForm = document.getElementById('admin-login-form');
-                     // إزالة المستمع القديم إن وجد لمنع التكرار
-                     const newLoginForm = loginForm?.cloneNode(true);
-                     if(loginForm && newLoginForm) {
-                         loginForm.parentNode.replaceChild(newLoginForm, loginForm);
-                         newLoginForm.addEventListener('submit', handleAdminLogin);
-                     }
-                }, 0);
-            } else if (hash === '#/admin/dashboard') {
-                pageId = 'page-admin-dashboard';
-                if (!admin) { goTo('#/admin'); return; }
-                // لا يوجد تحميل بيانات خاص لهذه الصفحة حالياً
-            } else if (hash === '#/admin/products') {
-                pageId = 'page-admin-products';
-                if (!admin) { goTo('#/admin'); return; }
-                renderAdminProductList(); // تقرأ من state.products (Firestore)
-            } else if (hash === '#/admin/products/new') {
-                pageId = 'page-admin-product-form';
-                if (!admin) { goTo('#/admin'); return; }
-                renderProductForm(); // وضع الإضافة
-            } else if (hash.startsWith('#/admin/products/edit/')) {
-                 pageId = 'page-admin-product-form';
-                 params = hash.split('/')[4];
-                 if (!admin) { goTo('#/admin'); return; }
-                 // المنتج سيتم جلبه داخل renderProductForm بناءً على params
-                 renderProductForm(params); // وضع التعديل - تمرير ID
-            } else if (hash === '#/admin/orders') {
-                pageId = 'page-admin-orders';
-                if (!admin) { goTo('#/admin'); return; }
-                renderAdminOrderList(); // تقرأ من state.orders (Firestore)
-            } else if (hash.startsWith('#/admin/orders/')) {
-                pageId = 'page-admin-order-detail';
-                params = hash.split('/')[3];
-                if (!admin) { goTo('#/admin'); return; }
-                 // الطلب سيتم جلبه داخل renderOrderDetailPage بناءً على params
-                renderOrderDetailPage(params); // تمرير ID
-            }
-            /* // قسم الإعدادات لم يعد مستخدماً للمفاتيح
-            else if (hash === '#/admin/settings') {
-                 pageId = 'page-admin-settings';
-                 if (!admin) { goTo('#/admin'); return; }
-                 renderSettingsPage();
-            }
-             */
-             else {
-                 // إذا لم يتطابق أي مسار، انتقل للمتجر
-                 goTo('#/');
-                 return; // أوقف التنفيذ هنا لتجنب إظهار صفحة خاطئة
-            }
 
-            // إظهار الصفحة المحددة
-            const activePage = document.getElementById(pageId);
-            if (activePage) {
-                activePage.classList.add('active');
-            } else {
-                // صفحة خطأ 404 أو العودة للرئيسية (احتياطي)
-                console.error("Page not found for hash:", hash);
-                const shopPage = document.getElementById('page-shop');
-                if (shopPage) {
-                     shopPage.classList.add('active');
-                     renderShopPage();
-                }
-            }
+          // --- توجيه العميل ---
+          if (hash === '#/') {
+              pageId = 'page-shop';
+              renderShopPage();
+          } else if (hash.startsWith('#/product/')) {
+              pageId = 'page-product-detail';
+              params = hash.split('/')[2];
+              renderProductDetailPage(params); // ستعرض Loader داخلياً وتجلب المنتج
+          } else if (hash === '#/cart') {
+              pageId = 'page-cart';
+              renderCartPage(); // تقرأ من state.cart (localStorage)
+          } else if (hash === '#/checkout') {
+              pageId = 'page-checkout';
+              renderCheckoutPage(); // تحتاج لجلب الولايات
+          }
+          // --- توجيه الأدمن ---
+          else if (hash === '#/admin') {
+              pageId = 'page-admin-login';
+              if (adminLoggedIn) { goTo('#/admin/dashboard'); return; } // إعادة توجيه إذا كان مسجلاً
+              // ربط مستمع فورم تسجيل الدخول عند عرض الصفحة
+              setTimeout(() => {
+                  const loginForm = document.getElementById('admin-login-form');
+                   // إزالة المستمع القديم إن وجد لمنع التكرار
+                   const newLoginForm = loginForm?.cloneNode(true);
+                   if(loginForm && newLoginForm) {
+                       loginForm.parentNode.replaceChild(newLoginForm, loginForm);
+                       newLoginForm.addEventListener('submit', handleAdminLogin);
+                   }
+              }, 0);
+          } else if (hash === '#/admin/dashboard') {
+              pageId = 'page-admin-dashboard';
+              if (!adminLoggedIn) { goTo('#/admin'); return; }
+              // لا يوجد تحميل بيانات خاص لهذه الصفحة حالياً
+          } else if (hash === '#/admin/products') {
+              pageId = 'page-admin-products';
+              if (!adminLoggedIn) { goTo('#/admin'); return; }
+              renderAdminProductList(); // تقرأ من state.products (Firestore)
+          } else if (hash === '#/admin/products/new') {
+              pageId = 'page-admin-product-form';
+              if (!adminLoggedIn) { goTo('#/admin'); return; }
+              renderProductForm(); // وضع الإضافة
+          } else if (hash.startsWith('#/admin/products/edit/')) {
+               pageId = 'page-admin-product-form';
+               params = hash.split('/')[4];
+               if (!adminLoggedIn) { goTo('#/admin'); return; }
+               // المنتج سيتم جلبه داخل renderProductForm بناءً على params
+               renderProductForm(params); // وضع التعديل - تمرير ID
+          } else if (hash === '#/admin/orders') {
+              pageId = 'page-admin-orders';
+              if (!adminLoggedIn) { goTo('#/admin'); return; }
+              renderAdminOrderList(); // تقرأ من state.orders (Firestore)
+          } else if (hash.startsWith('#/admin/orders/')) {
+              pageId = 'page-admin-order-detail';
+              params = hash.split('/')[3];
+              if (!adminLoggedIn) { goTo('#/admin'); return; }
+               // الطلب سيتم جلبه داخل renderOrderDetailPage بناءً على params
+              renderOrderDetailPage(params); // تمرير ID
+          }
+          /* // قسم الإعدادات لم يعد مستخدماً للمفاتيح
+          else if (hash === '#/admin/settings') {
+               pageId = 'page-admin-settings';
+               if (!admin) { goTo('#/admin'); return; }
+               renderSettingsPage();
+          }
+           */
+           else {
+               // إذا لم يتطابق أي مسار، انتقل للمتجر
+               goTo('#/');
+               return; // أوقف التنفيذ هنا لتجنب إظهار صفحة خاطئة
+          }
 
-            // إعادة الأيقونات والانتقال للأعلى
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
-            window.scrollTo(0, 0);
-        };
+          // إظهار الصفحة المحددة
+          const activePage = document.getElementById(pageId);
+          if (activePage) {
+              activePage.classList.add('active');
+          } else {
+              // صفحة خطأ 404 أو العودة للرئيسية (احتياطي)
+              console.error("Page not found for hash:", hash);
+              const shopPage = document.getElementById('page-shop');
+              if (shopPage) {
+                   shopPage.classList.add('active');
+                   renderShopPage();
+              }
+          }
+
+          // إعادة الأيقونات والانتقال للأعلى
+          if (typeof lucide !== 'undefined') {
+              lucide.createIcons();
+          }
+          window.scrollTo(0, 0);
+      };
+
 
         // 6. وظائف مساعدة (Helpers)
         const goTo = (hash) => {
@@ -2874,61 +2889,64 @@
 
         // 4. إضافة منتج للسلة (يستخدم localDb) - تعديل بسيط لإيجاد الصورة
         const addItemToCart = (product, variant, quantity) => {
-             if (!variant) { showToast('خطأ: المتغير المحدد غير صالح.', 'error'); return; }
+          if (!variant) { showToast('خطأ: المتغير المحدد غير صالح.', 'error'); return; }
 
-             const stockToCheck = variant.stock_quantity ?? 0; // Handle undefined stock
+          const stockToCheck = variant.stock_quantity ?? 0; // Handle undefined stock
 
-             if (stockToCheck < quantity) {
-                 showToast('الكمية المطلوبة غير متوفرة في المخزون!', 'error'); return;
-             }
+          if (stockToCheck < quantity) {
+              showToast('الكمية المطلوبة غير متوفرة في المخزون!', 'error'); return;
+          }
 
-             const existingItemIndex = state.cart.findIndex(item => item.variant_id === variant.id);
+          const existingItemIndex = state.cart.findIndex(item => item.variant_id === variant.id);
 
-             if (existingItemIndex > -1) {
-                 const existingItem = state.cart[existingItemIndex];
-                 const newQty = existingItem.quantity + quantity;
-                 if (stockToCheck < newQty) {
-                      showToast(`لا يمكنك إضافة المزيد، المخزون المتبقي لهذا الخيار هو ${stockToCheck - existingItem.quantity}.`, 'error'); return;
-                 }
-                 state.cart[existingItemIndex].quantity = newQty;
-             } else {
-                  // --- Find image ---
-                  let imageUrl = 'https://placehold.co/100x120/f1f5f9/a3a3a3?text=No+Image'; // Placeholder
-                  const variantImages = product.variantImages || {};
-                  const generalImages = product.generalImages || [];
-                  const colorHex = product.product_options?.find(opt => opt.name === 'Couleur')
-                                               ?.values.find(v => v.value === variant.options?.Couleur)
-                                               ?.hex_code;
-                  if (colorHex && variantImages[colorHex]?.length > 0) {
-                      imageUrl = variantImages[colorHex][0].url;
-                  } else if (generalImages.length > 0) {
-                      imageUrl = generalImages[0].url;
-                  }
+          if (existingItemIndex > -1) {
+              const existingItem = state.cart[existingItemIndex];
+              const newQty = existingItem.quantity + quantity;
+              if (stockToCheck < newQty) {
+                  showToast(`لا يمكنك إضافة المزيد، المخزون المتبقي لهذا الخيار هو ${stockToCheck - existingItem.quantity}.`, 'error'); return;
+              }
+              state.cart[existingItemIndex].quantity = newQty;
+          } else {
+              // --- Find image ---
+              let imageUrl = 'https://placehold.co/100x120/f1f5f9/a3a3a3?text=No+Image'; // Placeholder
+              const variantImages = product.variantImages || {};
+              const generalImages = product.generalImages || [];
+              const colorHex = product.product_options?.find(opt => opt.name === 'Couleur')
+                                       ?.values.find(v => v.value === variant.options?.Couleur)
+                                       ?.hex_code;
+              if (colorHex && variantImages[colorHex]?.length > 0) {
+                  imageUrl = variantImages[colorHex][0].url;
+              } else if (generalImages.length > 0) {
+                  imageUrl = generalImages[0].url;
+              }
 
-                 const optionsText = Object.entries(variant.options || {})
+              const optionsText = Object.entries(variant.options || {})
                                         .map(([key, value]) => value)
                                         .join(' / ');
 
-                 state.cart.push({
-                     cartId: variant.id + '-' + Date.now(),
-                     variant_id: variant.id,
-                     product_id: product.id,
-                     title: product.title,
-                     price: variant.price,
-                     quantity: quantity,
-                     image_url: imageUrl,
-                     optionsText: optionsText,
-                     stock: stockToCheck // Store current stock for checks in cart
-                 });
-             }
+              state.cart.push({
+                  cartId: variant.id + '-' + Date.now(),
+                  variant_id: variant.id,
+                  product_id: product.id,
+                  title: product.title,
+                  price: variant.price,
+                  quantity: quantity,
+                  image_url: imageUrl,
+                  optionsText: optionsText,
+                  stock: stockToCheck // Store current stock for checks in cart
+              });
+          }
 
-             localDb.set('cart', state.cart); // Save cart to localStorage
-             updateCartBadge();
-             showToast('تمت إضافة المنتج للسلة بنجاح!', 'success');
-             if(window.location.hash === '#/cart') {
-                 renderCartPage(); // Refresh cart page if currently viewing it
-             }
-        };
+          localDb.set('cart', state.cart); // Save cart to localStorage
+          updateCartBadge();
+          showToast('تمت إضافة المنتج للسلة بنجاح!', 'success');
+
+          // *** تعديل: توجيه المستخدم إلى السلة بعد الإضافة ***
+          goTo('#/cart'); // Go to cart page after adding item
+          // if(window.location.hash === '#/cart') {
+          //     renderCartPage(); // Refresh cart page if currently viewing it (now handled by goTo)
+          // }
+      };
 
         // 5. تحديث أيقونة السلة (يقرأ من state.cart) - كما هي
         const updateCartBadge = () => {
@@ -4037,10 +4055,24 @@
 
      };
 
+ 
+
+ 
+
+     // ==========================================
+
+     // بدء تشغيل التطبيق
+
+     // ==========================================
+
+     // ابدأ بتهيئة Firebase، الذي سيقوم بدوره بتهيئة واجهة المستخدم
+
      initializeFirebase();
+
+ 
+
  </script>
 
  </body>
 
  </html>
-                                

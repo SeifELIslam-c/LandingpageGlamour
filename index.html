@@ -435,80 +435,85 @@
         let ordersUnsubscribe = null; // لإلغاء الاستماع للطلبات
 
         async function initializeFirebase() {
-            try {
-                // استخدام الإعدادات والتكن من بيئة العمل
-                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+    try {
+        // استخدام الإعدادات والتكن من بيئة العمل
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
 
-                if (!firebaseConfig) {
-                    console.error("Firebase config not found!");
-                    showToast("خطأ في إعداد قاعدة البيانات. لا يمكن تحميل التطبيق.", "error", 10000);
-                    // يمكنك عرض رسالة خطأ للمستخدم هنا
-                    document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: لم يتم العثور على إعدادات قاعدة البيانات.</p>';
-                    return false;
-                }
+        if (!firebaseConfig) {
+            console.error("Firebase config not found!");
+            showToast("خطأ في إعداد قاعدة البيانات. لا يمكن تحميل التطبيق.", "error", 10000);
+            // يمكنك عرض رسالة خطأ للمستخدم هنا
+            document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: لم يتم العثور على إعدادات قاعدة البيانات.</p>';
+            return false;
+        }
 
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+        app = initializeApp(firebaseConfig);
+        db = getFirestore(app);
+        auth = getAuth(app);
 
-                // تفعيل التخزين المحلي (Offline Persistence) - اختياري لكن مفيد
-                try {
-                     await enableIndexedDbPersistence(db, { cacheSizeBytes: CACHE_SIZE_UNLIMITED });
-                     console.log("Firebase offline persistence enabled.");
-                } catch (err) {
-                    if (err.code == 'failed-precondition') {
-                         console.warn("Multiple tabs open, persistence can only be enabled in one tab at a a time.");
-                    } else if (err.code == 'unimplemented') {
-                         console.warn("The current browser does not support all of the features required to enable persistence.");
-                    } else {
-                        console.error("Error enabling offline persistence:", err);
-                    }
-                }
+        // *** هذا هو التعديل الصحيح: تعريف المسارات هنا الآن بعد تهيئة db ***
+        productsCollection = collection(db, 'products');
+        ordersCollection = collection(db, 'orders');
+        // *** نهاية التعديل ***
 
-
-                // محاولة تسجيل الدخول بالتكن أو كمجهول
-                onAuthStateChanged(auth, async (user) => {
-                     if (user) {
-                         // المستخدم مسجل دخوله (سواء بتكن أو مجهول)
-                         userId = user.uid;
-                         console.log("User is signed in:", userId);
-                         if (user.isAnonymous) {
-                             console.log("User is anonymous.");
-                         } else {
-                             console.log("User signed in with custom token.");
-                         }
-                         // الآن بعد التأكد من تسجيل الدخول، ابدأ بالاستماع للبيانات
-                         setupFirestoreListeners();
-                         initializeAppUI(); // تهيئة واجهة المستخدم والراوتر
-                     } else {
-                         // لا يوجد مستخدم، حاول تسجيل الدخول
-                         console.log("No user signed in, attempting sign in...");
-                         try {
-                              if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                  await signInWithCustomToken(auth, __initial_auth_token);
-                                  console.log("Signed in with custom token.");
-                              } else {
-                                  await signInAnonymously(auth);
-                                  console.log("Signed in anonymously.");
-                              }
-                               // onAuthStateChanged سيُستدعى مرة أخرى بعد نجاح تسجيل الدخول
-                         } catch (error) {
-                              console.error("Error signing in:", error);
-                              showToast("خطأ في الاتصال بقاعدة البيانات.", "error", 10000);
-                              document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: فشل الاتصال بقاعدة البيانات.</p>';
-                         }
-                     }
-                });
-
-                return true;
-
-            } catch (error) {
-                console.error("Firebase Initialization Error:", error);
-                showToast("فشل تهيئة قاعدة البيانات.", "error", 10000);
-                document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: فشل تهيئة قاعدة البيانات.</p>';
-                return false;
+        // تفعيل التخزين المحلي (Offline Persistence) - اختياري لكن مفيد
+        try {
+            await enableIndexedDbPersistence(db, { cacheSizeBytes: CACHE_SIZE_UNLIMITED });
+            console.log("Firebase offline persistence enabled.");
+        } catch (err) {
+            if (err.code == 'failed-precondition') {
+                console.warn("Multiple tabs open, persistence can only be enabled in one tab at a a time.");
+            } else if (err.code == 'unimplemented') {
+                console.warn("The current browser does not support all of the features required to enable persistence.");
+            } else {
+                console.error("Error enabling offline persistence:", err);
             }
         }
+
+
+        // محاولة تسجيل الدخول بالتكن أو كمجهول
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // المستخدم مسجل دخوله (سواء بتكن أو مجهول)
+                userId = user.uid;
+                console.log("User is signed in:", userId);
+                if (user.isAnonymous) {
+                    console.log("User is anonymous.");
+                } else {
+                    console.log("User signed in with custom token.");
+                }
+                // الآن بعد التأكد من تسجيل الدخول، ابدأ بالاستماع للبيانات
+                setupFirestoreListeners();
+                initializeAppUI(); // تهيئة واجهة المستخدم والراوتر
+            } else {
+                // لا يوجد مستخدم، حاول تسجيل الدخول
+                console.log("No user signed in, attempting sign in...");
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                        console.log("Signed in with custom token.");
+                    } else {
+                        await signInAnonymously(auth);
+                        console.log("Signed in anonymously.");
+                    }
+                    // onAuthStateChanged سيُستدعى مرة أخرى بعد نجاح تسجيل الدخول
+                } catch (error) {
+                    console.error("Error signing in:", error);
+                    showToast("خطأ في الاتصال بقاعدة البيانات.", "error", 10000);
+                    document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: فشل الاتصال بقاعدة البيانات.</p>';
+                }
+            }
+        });
+
+        return true;
+
+    } catch (error) {
+        console.error("Firebase Initialization Error:", error);
+        showToast("فشل تهيئة قاعدة البيانات.", "error", 10000);
+        document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: فشل تهيئة قاعدة البيانات.</p>';
+        return false;
+    }
+}
 
 
         // ==========================================
@@ -561,8 +566,8 @@
         const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 ساعة بالميلي ثانية
 
         // مسارات Firestore (استخدم مساراً بسيطاً الآن، يمكن تغييره لاحقاً)
-        const productsCollection = collection(db, 'products');
-        const ordersCollection = collection(db, 'orders');
+        let productsCollection;
+        let ordersCollection;
 
         // 4. إعداد مستمعي Firestore (للتحديثات الحية)
         function setupFirestoreListeners() {

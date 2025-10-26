@@ -195,9 +195,9 @@
 
                   <!-- روابط التنقل -->
                    <div class="flex items-center space-x-6" dir="ltr">
-                <a href="#/cart" class="relative flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors"> {/* <-- Added flex, items-center, space-x-2 */}
+                <a href="#/cart" class="relative flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors">
                     <i data-lucide="shopping-cart" class="w-6 h-6"></i>
-                    <span>السلة</span> {/* <-- Added this span */}
+                    <span class="font-medium">السلة</span>
                     <span id="cart-count-badge" class="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
                 </a>
                 <a href="#/admin" class="text-gray-400 hover:text-gray-700 transition-colors" title="لوحة التحكم">
@@ -1021,35 +1021,39 @@
 
         // تهيئة واجهة المستخدم والراوتر (تُستدعى بعد نجاح تسجيل الدخول في Firebase)
         const initializeAppUI = () => {
-            // إضافة مستمعين للأحداث العامة التي تحتاج للتشغيل مرة واحدة
-            window.addEventListener('hashchange', router);
-            // document.addEventListener('DOMContentLoaded', router); // استدعاء الراوتر عند تحميل DOM
-            // تم استدعاء الراوتر الأولي من داخل onAuthStateChanged بعد setupFirestoreListeners
+        // إضافة مستمعين للأحداث العامة التي تحتاج للتشغيل مرة واحدة
+        window.addEventListener('hashchange', router);
+        // document.addEventListener('DOMContentLoaded', router); // استدعاء الراوتر عند تحميل DOM
+        // تم استدعاء الراوتر الأولي من داخل onAuthStateChanged بعد setupFirestoreListeners
 
-            // مستمع عام للأحداث (Event Delegation)
-            document.body.addEventListener('click', (e) => {
-                // لإغلاق المودال
-                if (e.target.id === 'modal-backdrop' || e.target.closest('.modal-close-btn')) {
-                    hideModal();
-                }
-            });
+        // مستمع عام للأحداث (Event Delegation)
+        document.body.addEventListener('click', (e) => {
+            // لإغلاق المودال
+            if (e.target.id === 'modal-backdrop' || e.target.closest('.modal-close-btn')) {
+                hideModal();
+            }
+        });
 
-             // مستمع زر تسجيل الخروج
-             const logoutBtn = document.getElementById('admin-logout-btn');
-             if (logoutBtn) {
-                 // إزالة المستمع القديم إن وجد
-                 const newLogoutBtn = logoutBtn.cloneNode(true);
-                 logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
-                 newLogoutBtn.addEventListener('click', handleAdminLogout);
-             }
+         // مستمع زر تسجيل الخروج
+         const logoutBtn = document.getElementById('admin-logout-btn');
+         if (logoutBtn) {
+             // إزالة المستمع القديم إن وجد
+             const newLogoutBtn = logoutBtn.cloneNode(true);
+             logoutBtn.parentNode.replaceChild(newLogoutBtn, logoutBtn);
+             newLogoutBtn.addEventListener('click', handleAdminLogout);
+         }
 
+        // تحديث عدد السلة عند التحميل
+        updateCartBadge();
 
-            // تحديث عدد السلة عند التحميل
-            updateCartBadge();
+        // تنفيذ الراوتر لأول مرة (يتم استدعاؤه الآن من onAuthStateChanged)
+        // router();
 
-            // تنفيذ الراوتر لأول مرة (يتم استدعاؤه الآن من onAuthStateChanged)
-            // router(); 
-        };
+        // *** إضافة: تأكد من رسم الأيقونات بعد تهيئة الواجهة ***
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    };
 
         // ==========================================
         // منطق الأدمن (Admin Logic) - مع Firebase

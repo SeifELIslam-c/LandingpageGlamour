@@ -2992,23 +2992,24 @@
                                  <img src="${item.image_url}" alt="${item.title}" class="w-24 h-28 sm:w-20 sm:h-24 object-cover rounded-md border flex-shrink-0 mb-3 sm:mb-0">
                                  <div class="flex-1 mx-0 sm:mx-4 w-full">
                                      <div class="flex justify-between items-start w-full">
-                                          <div>
-                                              <p class="font-semibold text-gray-900 text-base leading-tight">${item.title}</p>
-                                              <p class="text-sm text-gray-500 mt-1">${item.optionsText}</p>
-                                          </div>
-                                         <p class="font-semibold text-gray-900 text-base sm:hidden">${(item.price * item.quantity).toLocaleString('fr-DZ')} د.ج</p>
-                                     </div>
-                                     <!-- أزرار الكمية -->
-                                     <div class="flex items-center justify-between sm:justify-start space-x-2 space-x-reverse mt-2">
-                                         <div class="inline-flex items-center border border-gray-300 rounded-md overflow-hidden"> {/* Added overflow-hidden */}
-                      <button data-action="decrease" class="px-2 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed border-l border-gray-300" ${item.quantity <= 1 ? 'disabled' : ''}> {/* Adjusted padding/border */}
-                                             <i data-lucide="minus" class="w-4 h-4 inline-block"></i> {/* Removed pointer-events-none, added inline-block */}
-                      </button>
-                      <span class="font-medium w-10 text-center text-sm px-2 py-1">${item.quantity}</span> {/* Added padding */}
-                      <button data-action="increase" class="px-2 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed border-r border-gray-300" ${item.quantity >= item.stock ? 'disabled' : ''}> {/* Adjusted padding/border */}
-                         <i data-lucide="plus" class="w-4 h-4 inline-block"></i> {/* Removed pointer-events-none, added inline-block */}
-                      </button>
-                        </div>
+                       <div class="flex-1 mx-0 sm:mx-4 w-full">
+                                        <div class="flex justify-between items-start w-full">
+                                            <div>
+                                                <p class="font-semibold text-gray-900 text-base leading-tight">${item.title}</p>
+                                                <p class="text-sm text-gray-500 mt-1">${item.optionsText}</p>
+                                            </div>
+                                            <p class="font-semibold text-gray-900 text-base sm:hidden">${(item.price * item.quantity).toLocaleString('fr-DZ')} د.ج</p>
+                                        </div>
+                                        <div class="flex items-center justify-between sm:justify-start space-x-2 space-x-reverse mt-2">
+                                            <div class="inline-flex items-center border border-gray-300 rounded-md overflow-hidden">
+                                                <button data-action="decrease" class="px-2 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed border-l border-gray-300" ${item.quantity <= 1 ? 'disabled' : ''}>
+                                                    <i data-lucide="minus" class="w-4 h-4 inline-block"></i>
+                                                </button>
+                                                <span class="font-medium w-10 text-center text-sm px-2 py-1">${item.quantity}</span>
+                                                <button data-action="increase" class="px-2 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed border-r border-gray-300" ${item.quantity >= item.stock ? 'disabled' : ''}>
+                                                    <i data-lucide="plus" class="w-4 h-4 inline-block"></i>
+                                                </button>
+                                            </div>
                                          <button data-action="remove" class="text-xs text-red-600 hover:text-red-800 hover:underline sm:ml-4">
                                              إزالة
                                          </button>

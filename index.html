@@ -471,11 +471,15 @@
                 }
 
                 // محاولة تسجيل الدخول (كمجهول فقط، لأن __initial_auth_token لا يوجد في Netlify)
-                onAuthStateChanged(auth, async (user) => {
+                   onAuthStateChanged(auth, async (user) => {
             if (user) {
                 // المستخدم مسجل دخوله
                 userId = user.uid;
                 console.log("User is signed in:", userId, "Anonymous:", user.isAnonymous);
+
+                // *** إضافة: تحميل السلة الخاصة بالمستخدم ***
+                state.cart = localDb.get(`cart_${userId}`, []);
+                updateCartBadge(); // تحديث الأيقونة بعد تحميل السلة الصحيحة
 
                 // *** تعديل: قم بتهيئة واجهة المستخدم والراوتر فورًا هنا ***
                 initializeAppUI(); // Register event listeners and run initial router
@@ -537,25 +541,25 @@
         };
 
         // 3. الحالة العامة للتطبيق
-        const state = {
-            products: [], // ستُملأ من Firestore
-            orders: [], // ستُملأ من Firestore
-            cart: localDb.get('cart', []), // السلة تبقى محلية
-            yalidineSettings: {}, // لم تعد مستخدمة للمفاتيح
-            lastFetched: { 
-                wilayas: 0,
-                communes: {}, 
-                fees: {},    
-                centers: {}   
-            },
-            cache: { 
-                wilayas: localDb.get('yalidine_wilayas_cache'),
-                communes: localDb.get('yalidine_communes_cache', {}),
-                fees: localDb.get('yalidine_fees_cache', {}),
-                centers: localDb.get('yalidine_centers_cache', {})
-            },
-            appReady: false // لتتبع جاهزية التطبيق
-        };
+    const state = {
+        products: [], // ستُملأ من Firestore
+        orders: [], // ستُملأ من Firestore
+        cart: [], // ابدأ بسلة فارغة مؤقتًا
+        yalidineSettings: {}, // لم تعد مستخدمة للمفاتيح
+        lastFetched: {
+            wilayas: 0,
+            communes: {},
+            fees: {},
+            centers: {}
+        },
+        cache: {
+            wilayas: localDb.get('yalidine_wilayas_cache'),
+            communes: localDb.get('yalidine_communes_cache', {}),
+            fees: localDb.get('yalidine_fees_cache', {}),
+            centers: localDb.get('yalidine_centers_cache', {})
+        },
+        appReady: false // لتتبع جاهزية التطبيق
+    };
         const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 ساعة
 
         
@@ -2935,9 +2939,9 @@
               });
           }
 
-          localDb.set('cart', state.cart); // Save cart to localStorage
-          updateCartBadge();
-          showToast('تمت إضافة المنتج للسلة بنجاح!', 'success');
+          localDb.set(`cart_${userId}`, state.cart); // Save cart using user-specific key
+            updateCartBadge();
+            showToast('تمت إضافة المنتج للسلة بنجاح!', 'success');
 
           // *** تعديل: توجيه المستخدم إلى السلة بعد الإضافة ***
           goTo('#/cart'); // Go to cart page after adding item
@@ -3080,7 +3084,7 @@
              }
 
              state.cart[itemIndex].quantity = newQty;
-             localDb.set('cart', state.cart);
+             localDb.set(`cart_${userId}`, state.cart); // Save cart using user-specific key
              updateCartBadge();
              renderCartPage(); // إعادة عرض الصفحة لتحديث الإجمالي والأزرار
         };
@@ -3107,7 +3111,7 @@
              `);
               document.getElementById('confirm-remove-item').onclick = () => {
                   state.cart = state.cart.filter(item => item.cartId !== cartId);
-                  localDb.set('cart', state.cart);
+                  localDb.set(`cart_${userId}`, state.cart); // Save cart using user-specific key
                   updateCartBadge();
                   renderCartPage(); // Refresh cart page
                   hideModal();
@@ -3991,12 +3995,9 @@
 
  
 
-               // 4. إفراغ السلة المحلية
-
+              // 4. إفراغ السلة المحلية الخاصة بالمستخدم
                state.cart = [];
-
-               localDb.set('cart', []);
-
+              localDb.set(`cart_${userId}`, []); // Clear user-specific cart key
                updateCartBadge();
 
  

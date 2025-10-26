@@ -195,17 +195,14 @@
 
                   <!-- روابط التنقل -->
                   <div class="flex items-center space-x-6" dir="ltr">
-                      <!-- *** تعديل: التأكد من أن رابط المتجر صحيح *** -->
-                      <a href="#/" class="text-gray-600 hover:text-blue-600 font-medium transition-colors">المتجر</a>
-                      <a href="#/cart" class="relative text-gray-600 hover:text-blue-600 transition-colors">
-                          <i data-lucide="shopping-cart" class="w-6 h-6"></i>
-                          <span id="cart-count-badge" class="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
-                      </a>
-                      <!-- رابط الأدمن - يمكن إخفاؤه لاحقاً إذا أردت -->
-                      <a href="#/admin" class="text-gray-400 hover:text-gray-700 transition-colors" title="لوحة التحكم">
-                          <i data-lucide="user-cog" class="w-6 h-6"></i>
-                      </a>
-                  </div>
+                <a href="#/cart" class="relative text-gray-600 hover:text-blue-600 transition-colors">
+                    <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+                    <span id="cart-count-badge" class="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                </a>
+                <a href="#/admin" class="text-gray-400 hover:text-gray-700 transition-colors" title="لوحة التحكم">
+                    <i data-lucide="user-cog" class="w-6 h-6"></i>
+                </a>
+            </div>
               </div>
           </nav>
       </header>
@@ -474,30 +471,31 @@
 
                 // محاولة تسجيل الدخول (كمجهول فقط، لأن __initial_auth_token لا يوجد في Netlify)
                 onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        // المستخدم مسجل دخوله
-                        userId = user.uid;
-                        console.log("User is signed in:", userId, "Anonymous:", user.isAnonymous);
-                        
-                        // الآن بعد التأكد من تسجيل الدخول، ابدأ بالاستماع للبيانات
-                        setupFirestoreListeners();
-                        // وقم بتهيئة واجهة المستخدم والراوتر
-                        initializeAppUI(); 
-                    } else {
-                        // لا يوجد مستخدم، حاول تسجيل الدخول كمجهول
-                        console.log("No user signed in, attempting anonymous sign in...");
-                        try {
-                            // تم حذف التحقق من __initial_auth_token
-                            await signInAnonymously(auth);
-                            console.log("Signed in anonymously.");
-                            // onAuthStateChanged سيُستدعى مرة أخرى بعد نجاح تسجيل الدخول
-                        } catch (error) {
-                            console.error("Error signing in anonymously:", error);
-                            showToast("خطأ في الاتصال بقاعدة البيانات.", "error", 10000);
-                            document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: فشل الاتصال بقاعدة البيانات.</p>';
-                        }
-                    }
-                });
+            if (user) {
+                // المستخدم مسجل دخوله
+                userId = user.uid;
+                console.log("User is signed in:", userId, "Anonymous:", user.isAnonymous);
+
+                // *** تعديل: قم بتهيئة واجهة المستخدم والراوتر فورًا هنا ***
+                initializeAppUI(); // Register event listeners and run initial router
+
+                // ثم ابدأ بالاستماع للبيانات (سيؤدي لتحديث الواجهة عند وصول البيانات)
+                setupFirestoreListeners();
+
+            } else {
+                // لا يوجد مستخدم، حاول تسجيل الدخول كمجهول
+                console.log("No user signed in, attempting anonymous sign in...");
+                try {
+                    await signInAnonymously(auth);
+                    console.log("Signed in anonymously.");
+                    // onAuthStateChanged سيُستدعى مرة أخرى مع الـ user، وعندها سيتم استدعاء initializeAppUI و setupFirestoreListeners
+                } catch (error) {
+                    console.error("Error signing in anonymously:", error);
+                    showToast("خطأ في الاتصال بقاعدة البيانات.", "error", 10000);
+                    document.body.innerHTML = '<p class="text-center text-red-600 p-10">خطأ حرج: فشل الاتصال بقاعدة البيانات.</p>';
+                }
+            }
+        });
 
                 return true;
 

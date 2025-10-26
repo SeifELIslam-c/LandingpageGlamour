@@ -168,7 +168,7 @@
             <nav class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
                     <!-- اللوجو -->
-                    <a href="#/" class="text-2xl font-bold text-gray-900">متجري</a>
+                    <a href="#/" class="text-2xl font-bold text-gray-900">Boutique Glamour</a>
 
                     <!-- روابط التنقل -->
                     <div class="flex items-center space-x-6" dir="ltr">
@@ -619,7 +619,9 @@
             }
 
             // إعادة الأيقونات والانتقال للأعلى
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
             window.scrollTo(0, 0);
         };
 
@@ -645,7 +647,9 @@
              backdrop.classList.add('opacity-100');
              container.classList.add('opacity-100', 'scale-100');
              container.classList.remove('opacity-0', 'scale-95');
-             lucide.createIcons(); // Render icons inside modal
+             if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+} // Render icons inside modal
          };
 
          // إخفاء المودال
@@ -680,7 +684,9 @@
                  </button>
              `;
              container.appendChild(toast);
-             lucide.createIcons();
+             if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
 
              // Add close button listener
              toast.querySelector('button').addEventListener('click', () => {
@@ -1054,7 +1060,9 @@
                          </tr>
                      `;
                  }).join('');
-                 lucide.createIcons();
+                 if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
             }, 100); // Small delay to show loader
         };
 
@@ -1154,7 +1162,9 @@
             `;
 
             renderOrderActions(order); // استدعاء لعرض الأزرار
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
         };
 
         // 8. عرض أزرار إجراءات الطلب
@@ -1215,7 +1225,9 @@
 
             container.innerHTML = buttons;
             trackingContainer.innerHTML = trackingInfo;
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
 
             // إضافة مستمعين للأزرار
             container.querySelectorAll('button[data-action]').forEach(btn => {
@@ -1424,7 +1436,9 @@
                  `;
              });
 
-             lucide.createIcons();
+             if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
 
              // إضافة مستمعين للألوان
              container.querySelectorAll('.color-swatch').forEach(swatch => {
@@ -1574,7 +1588,9 @@
                  `;
              }).join('');
 
-             lucide.createIcons();
+             if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
 
              // إعادة ربط المستمعين
              container.querySelectorAll('[data-remove-color]').forEach(btn => {
@@ -1702,7 +1718,9 @@
                         });
                     });
               }
-               lucide.createIcons();
+               if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
          };
 
 
@@ -1767,7 +1785,9 @@
               }
 
 
-             lucide.createIcons();
+             if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
 
              // إعادة ربط مستمعين الحذف لهذه الحاوية فقط
              container.querySelectorAll('[data-remove-image-id]').forEach(btn => {
@@ -2207,7 +2227,9 @@
             `;
 
             setupVariantSelector(product); // تشغيل منطق اختيار الخيارات
-            lucide.createIcons();
+            if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
         };
 
         // 3. منطق اختيار الخيارات في صفحة المنتج (مع تحديث الصور)
@@ -2511,7 +2533,9 @@
                          </a>
                      </div>
                  `;
-                 lucide.createIcons();
+                 if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
                  return;
              }
 
@@ -2586,7 +2610,9 @@
                  </div>
              `;
 
-             lucide.createIcons();
+             if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+}
 
              // إضافة مستمعين لصفحة السلة
              pageEl.querySelectorAll('[data-cart-item-id]').forEach(itemEl => {

@@ -1394,15 +1394,14 @@
                      </button>
                  `;
              } else if (order.status === 'confirmed') {
-                 buttons = `
-                     <button data-action="shipped" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 flex items-center justify-center space-x-2 space-x-reverse transition-colors">
-                         <i data-lucide="truck" class="w-4 h-4"></i> <span>تم الشحن (إنشاء تتبع وهمي)</span>
-                     </button>
-                      <p class="text-xs text-center text-gray-500 mt-2">سيؤدي هذا إلى إنشاء رقم تتبع وهمي.</p>
-                     <button data-action="cancelled" class="w-full bg-red-600 text-white py-2 px-4 rounded-md font-medium hover:bg-red-700 flex items-center justify-center space-x-2 space-x-reverse transition-colors mt-2">
-                         <i data-lucide="x" class="w-4 h-4"></i> <span>إلغاء الطلب</span>
-                     </button>
-                 `;
+            buttons = `
+            <button data-action="shipped" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 flex items-center justify-center space-x-2 space-x-reverse transition-colors">
+                     <i data-lucide="truck" class="w-4 h-4"></i> <span>تأكيد الشحن</span>
+            </button>
+            <button data-action="cancelled" class="w-full bg-red-600 text-white py-2 px-4 rounded-md font-medium hover:bg-red-700 flex items-center justify-center space-x-2 space-x-reverse transition-colors mt-2">
+                     <i data-lucide="x" class="w-4 h-4"></i> <span>إلغاء الطلب</span>
+            </button>
+            `;
              } else if (order.status === 'shipped') {
                  buttons = `
                      <button data-action="delivered" class="w-full bg-green-600 text-white py-2 px-4 rounded-md font-medium hover:bg-green-700 flex items-center justify-center space-x-2 space-x-reverse transition-colors">
@@ -1479,56 +1478,52 @@
 
              try {
                  await runTransaction(db, async (transaction) => {
-                     const orderSnap = await transaction.get(orderRef);
-                     if (!orderSnap.exists()) {
-                         throw "لم يتم العثور على الطلب!";
-                     }
+                                const orderSnap = await transaction.get(orderRef);
+                                if (!orderSnap.exists()) {
+                                    throw "لم يتم العثور على الطلب!";
+                                }
 
-                     const orderData = orderSnap.data();
-                     const originalStatus = orderData.status;
+                                const orderData = orderSnap.data();
+                                const originalStatus = orderData.status;
 
-                     if (originalStatus === newStatus) return; // لا تغيير
+                                if (originalStatus === newStatus) return; // لا تغيير
 
-                     const shouldRestoreStock = (newStatus === 'cancelled' || newStatus === 'returned');
-                     const wasStockRemoved = (originalStatus !== 'cancelled' && originalStatus !== 'returned' && originalStatus !== 'pending');
-                     let trackingId = orderData.yalidine_tracking_id; // Keep existing tracking ID
+                                const shouldRestoreStock = (newStatus === 'cancelled' || newStatus === 'returned');
+                                const wasStockRemoved = (originalStatus !== 'cancelled' && originalStatus !== 'returned' && originalStatus !== 'pending');
+                                // let trackingId = orderData.yalidine_tracking_id; // REMOVED
 
-                      // Generate fake tracking ID if moving to shipped
-                      if (newStatus === 'shipped' && !trackingId) {
-                          trackingId = `YAL-${Date.now().toString().slice(-7)}`;
-                      }
+                                 // Generate fake tracking ID if moving to shipped - REMOVED
+                                 /*
+                                 if (newStatus === 'shipped' && !trackingId) {
+                                     trackingId = `YAL-${Date.now().toString().slice(-7)}`;
+                                 }
+                                 */
 
-                     // منطق تحديث المخزون
-                     if (shouldRestoreStock && wasStockRemoved) {
-                         // استعادة المخزون
-                         for (const item of orderData.cart) {
-                             const productRef = doc(db, 'products', item.product_id);
-                             const productSnap = await transaction.get(productRef);
-                             if (productSnap.exists()) {
-                                  const productData = productSnap.data();
-                                  const variantIndex = productData.variants.findIndex(v => v.id == item.variant_id);
-                                  if (variantIndex > -1) {
-                                       productData.variants[variantIndex].stock_quantity = (productData.variants[variantIndex].stock_quantity || 0) + item.quantity;
-                                       transaction.update(productRef, { variants: productData.variants, updatedAt: serverTimestamp() });
-                                  } else { console.warn(`Variant ${item.variant_id} not found in product ${item.product_id} for stock restore.`); }
-                             } else { console.warn(`Product ${item.product_id} not found for stock restore.`); }
-                         }
-                         console.log("Stock restored for order:", orderId);
-                     } 
-                     // لا حاجة لـ else if (إزالة المخزون)
-                     // لأن المخزون يتم إزالته عند إنشاء الطلب (في handleCheckoutSubmit)
-                     // وتأكيد الطلب (confirmed) هو مجرد خطوة إدارية الآن
+                                // منطق تحديث المخزون
+                                if (shouldRestoreStock && wasStockRemoved) {
+                                    // استعادة المخزون
+                                    for (const item of orderData.cart) {
+                                        const productRef = doc(db, 'products', item.product_id);
+                                        const productSnap = await transaction.get(productRef);
+                                        if (productSnap.exists()) {
+                                 const productData = productSnap.data();
+                                 const variantIndex = productData.variants.findIndex(v => v.id == item.variant_id);
+                                 if (variantIndex > -1) {
+                                    productData.variants[variantIndex].stock_quantity = (productData.variants[variantIndex].stock_quantity || 0) + item.quantity;
+                                    transaction.update(productRef, { variants: productData.variants, updatedAt: serverTimestamp() });
+                                 } else { console.warn(`Variant ${item.variant_id} not found in product ${item.product_id} for stock restore.`); }
+                                } else { console.warn(`Product ${item.product_id} not found for stock restore.`); }
+                                    }
+                                    console.log("Stock restored for order:", orderId);
+                                }
+                                // لا حاجة لـ else if (إزالة المخزون)
 
-                     // تحديث حالة الطلب ورقم التتبع إن وجد
-                     transaction.update(orderRef, {
-                         status: newStatus,
-                         yalidine_tracking_id: trackingId // Update tracking ID if generated
-                     });
-                 });
-
-                 showToast(`تم تحديث حالة الطلب إلى: ${getStatusBadge(newStatus).text}`, 'success');
-                  // onSnapshot سيهتم بإعادة العرض
-                 // renderOrderDetailPage(orderId); // No longer needed
+                                // تحديث حالة الطلب فقط
+                                transaction.update(orderRef, {
+                                    status: newStatus
+                                    // yalidine_tracking_id is not updated here anymore
+                                });
+                   });
              } catch (error) {
                  console.error("Error updating order status:", error);
                  showToast(`فشل تحديث حالة الطلب: ${error}`, 'error');
@@ -3215,8 +3210,8 @@
 
                      <!-- ملخص الطلب -->
                      <aside class="lg:col-span-1">
-                         <div class="bg-white p-6 rounded-lg shadow border border-gray-200 sticky top-24">
-                             <h3 class="text-xl font-semibold mb-4 pb-4 border-b text-gray-800">ملخص الطلب</h3>
+                        <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
+                            <h3 class="text-xl font-semibold mb-4 pb-4 border-b text-gray-800">ملخص الطلب</h3>
                              <!-- Cart Items Mini View -->
                              <div class="space-y-3 max-h-48 overflow-y-auto mb-4 pr-2 border-b pb-4">
 

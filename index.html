@@ -1,0 +1,3167 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متجري الإلكتروني</title>
+    <!-- تحميل Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- تحميل مكتبة الأيقونات Lucide -->
+    <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide.min.js"></script>
+    <!-- خطوط Cairo و Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* إعدادات الخطوط الافتراضية */
+        body {
+            font-family: 'Cairo', 'Inter', sans-serif;
+            background-color: #f8fafc; /* لون خلفية أفتح قليلاً */
+        }
+
+        /* تنسيقات إضافية */
+        .color-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .color-swatch.selected::after {
+            content: '';
+            position: absolute;
+            top: -4px; right: -4px; bottom: -4px; left: -4px;
+            border: 2px solid #3b82f6; /* لون أزرق للإشارة للاختيار */
+            border-radius: 50%;
+        }
+         .color-swatch:hover {
+            transform: scale(1.1);
+        }
+
+        .size-tag {
+            border: 1px solid #cbd5e1;
+            padding: 6px 16px;
+            border-radius: 99px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            background-color: white;
+        }
+         .size-tag:hover:not(.selected):not(:disabled) {
+             background-color: #f1f5f9;
+         }
+        .size-tag.selected {
+            background-color: #1f2937;
+            color: #fff;
+            border-color: #1f2937;
+        }
+         .size-tag:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background-color: #e2e8f0;
+         }
+
+        /* لإخفاء وإظهار الصفحات */
+        .page {
+            display: none;
+            animation: fadeIn 0.5s ease-out;
+        }
+        .page.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* مودال (Modal) */
+        .modal {
+            transition: opacity 0.3s ease;
+        }
+
+        /* تحميل (Spinner) */
+        .loader {
+            border: 4px solid #e5e7eb; /* Light gray */
+            border-top: 4px solid #3b82f6; /* Blue */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* تصميم كروت الراديو للاختيار بين التوصيل */
+        .radio-card-group label input[type="radio"] { display: none; }
+        .radio-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 0.5rem;
+            padding: 1.5rem 1rem;
+            text-align: center;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            background-color: white;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .radio-card-group label input[type="radio"]:checked + .radio-card {
+            border-color: #3b82f6; /* Blue */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            background-color: #eff6ff; /* Light Blue */
+        }
+        .radio-card-group label:hover input[type="radio"]:not(:checked) + .radio-card {
+             border-color: #9ca3af; /* Gray */
+        }
+        .radio-card-group label.disabled .radio-card {
+             opacity: 0.5;
+             cursor: not-allowed;
+             background-color: #f3f4f6;
+        }
+        .radio-card .icon {
+             margin-bottom: 0.75rem;
+             color: #6b7280; /* Gray */
+             transition: color 0.2s ease-in-out;
+        }
+         .radio-card-group label input[type="radio"]:checked + .radio-card .icon {
+             color: #3b82f6; /* Blue */
+         }
+
+        /* زر حذف الصورة */
+        .remove-image-btn {
+            position: absolute;
+            top: -8px;
+            left: -8px; /* For RTL */
+            background-color: #ef4444; /* Red */
+            color: white;
+            border-radius: 50%;
+            padding: 2px;
+            display: none;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .image-preview-item:hover .remove-image-btn {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <!-- بداية حاوية التطبيق الرئيسية -->
+    <div id="app" class="min-h-screen flex flex-col">
+
+        <!-- ====================================================== -->
+        <!-- =========== رأس الصفحة (Header) للعميل =========== -->
+        <!-- ====================================================== -->
+        <header id="customer-header" class="bg-white shadow-sm sticky top-0 z-40">
+            <nav class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <!-- اللوجو -->
+                    <a href="#/" class="text-2xl font-bold text-gray-900">متجري</a>
+
+                    <!-- روابط التنقل -->
+                    <div class="flex items-center space-x-6" dir="ltr">
+                        <a href="#/" class="text-gray-600 hover:text-blue-600 font-medium transition-colors">المتجر</a>
+                        <a href="#/cart" class="relative text-gray-600 hover:text-blue-600 transition-colors">
+                            <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+                            <span id="cart-count-badge" class="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                        </a>
+                        <a href="#/admin" class="text-gray-400 hover:text-gray-700 transition-colors" title="لوحة التحكم">
+                            <i data-lucide="user-cog" class="w-6 h-6"></i>
+                        </a>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <!-- ====================================================== -->
+        <!-- =========== رأس الصفحة (Header) للأدمن =========== -->
+        <!-- ====================================================== -->
+        <header id="admin-header" class="bg-gray-900 text-white shadow-md sticky top-0 z-40 hidden">
+            <nav class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <a href="#/admin/dashboard" class="text-xl font-bold">لوحة تحكم الأدمن</a>
+                    <div class="flex items-center space-x-6" dir="ltr">
+                        <a href="#/admin/products" class="text-gray-300 hover:text-white transition-colors">المنتجات</a>
+                        <a href="#/admin/orders" class="text-gray-300 hover:text-white transition-colors">الطلبات</a>
+                        <a href="#/admin/settings" class="text-gray-300 hover:text-white transition-colors">الإعدادات</a>
+                        <a href="#/" id="admin-logout-btn" class="text-red-400 hover:text-red-300 transition-colors" title="تسجيل الخروج">
+                            <i data-lucide="log-out" class="w-5 h-5"></i>
+                        </a>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <!-- ====================================================== -->
+        <!-- ================== حاوية الصفحات ================== -->
+        <!-- ====================================================== -->
+        <main class="container mx-auto max-w-7xl p-4 sm:p-6 lg:p-8 flex-grow">
+
+            <!-- صفحة المتجر (عرض المنتجات) -->
+            <section id="page-shop" class="page">
+                <h1 class="text-3xl font-bold text-gray-900 mb-8 text-center">منتجاتنا</h1>
+                <div id="product-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <!-- سيتم ملء المنتجات هنا عبر JS -->
+                    <div class="col-span-full flex justify-center items-center h-64">
+                         <div class="loader"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- صفحة تفاصيل المنتج -->
+            <section id="page-product-detail" class="page"></section>
+
+            <!-- صفحة السلة -->
+            <section id="page-cart" class="page"></section>
+
+            <!-- صفحة الدفع (Checkout) -->
+            <section id="page-checkout" class="page"></section>
+
+            <!-- صفحة تسجيل دخول الأدمن -->
+            <section id="page-admin-login" class="page">
+                <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md mt-10 border border-gray-200">
+                    <h2 class="text-2xl font-bold text-center mb-6 text-gray-800">تسجيل دخول الأدمن</h2>
+                    <form id="admin-login-form">
+                        <div class="mb-4">
+                            <label for="admin-password" class="block text-sm font-medium text-gray-700 mb-2">كلمة المرور</label>
+                            <input type="password" id="admin-password" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" required>
+                        </div>
+                        <p id="admin-login-error" class="text-red-600 text-sm mb-4 hidden"></p>
+                        <button type="submit" class="w-full bg-gray-900 text-white py-2 px-4 rounded-md font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-900 transition-colors">
+                            دخول
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- لوحة تحكم الأدمن (الرئيسية) -->
+            <section id="page-admin-dashboard" class="page">
+                <h1 class="text-3xl font-bold text-gray-900 mb-8">أهلاً بك في لوحة التحكم</h1>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <a href="#/admin/products" class="block bg-white p-6 rounded-lg shadow border border-gray-200 hover:shadow-lg hover:border-blue-500 transition-all duration-300">
+                        <i data-lucide="package" class="w-10 h-10 text-blue-600 mb-3"></i>
+                        <h3 class="text-xl font-semibold mb-1 text-gray-800">إدارة المنتجات</h3>
+                        <p class="text-gray-600">إضافة وتعديل المنتجات والمخزون.</p>
+                    </a>
+                    <a href="#/admin/orders" class="block bg-white p-6 rounded-lg shadow border border-gray-200 hover:shadow-lg hover:border-green-500 transition-all duration-300">
+                        <i data-lucide="shopping-bag" class="w-10 h-10 text-green-600 mb-3"></i>
+                        <h3 class="text-xl font-semibold mb-1 text-gray-800">عرض الطلبات</h3>
+                        <p class="text-gray-600">متابعة الطلبات الجديدة والحالية.</p>
+                    </a>
+                    <a href="#/admin/settings" class="block bg-white p-6 rounded-lg shadow border border-gray-200 hover:shadow-lg hover:border-gray-500 transition-all duration-300">
+                        <i data-lucide="settings" class="w-10 h-10 text-gray-600 mb-3"></i>
+                        <h3 class="text-xl font-semibold mb-1 text-gray-800">الإعدادات</h3>
+                        <p class="text-gray-600">إعدادات الشحن (Yalidine) وغيرها.</p>
+                    </a>
+                </div>
+            </section>
+
+            <!-- صفحة عرض منتجات الأدمن -->
+            <section id="page-admin-products" class="page">
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-3xl font-bold text-gray-900">المنتجات</h1>
+                    <a href="#/admin/products/new" class="bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 flex items-center space-x-2 space-x-reverse transition-colors">
+                        <i data-lucide="plus" class="w-5 h-5"></i>
+                        <span>إضافة منتج جديد</span>
+                    </a>
+                </div>
+                <div class="bg-white shadow-md rounded-lg overflow-x-auto border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المنتج</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">السعر</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المخزون</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-product-list" class="bg-white divide-y divide-gray-200">
+                            <!-- سيتم ملء المنتجات هنا -->
+                            <tr><td colspan="4" class="text-center p-8 text-gray-500"><div class="loader mx-auto"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <!-- (يمكن إضافة Pagination هنا لاحقاً) -->
+            </section>
+
+            <!-- صفحة إضافة/تعديل منتج للأدمن -->
+            <section id="page-admin-product-form" class="page">
+                 <form id="product-form" class="space-y-6">
+                     <div class="flex justify-between items-center mb-6 pb-4 border-b">
+                         <h1 id="product-form-title" class="text-2xl lg:text-3xl font-bold text-gray-900">إضافة منتج جديد</h1>
+                         <div>
+                             <a href="#/admin/products" class="text-gray-600 hover:text-gray-900 mr-4 transition-colors">إلغاء</a>
+                             <button type="submit" class="bg-blue-600 text-white py-2 px-5 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-600 transition-colors">
+                                 حفظ المنتج
+                             </button>
+                         </div>
+                     </div>
+
+                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                         <!-- العمود الأيمن (الرئيسي) -->
+                         <div class="lg:col-span-2 space-y-6">
+                             <!-- معلومات المنتج الأساسية -->
+                             <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                                <h3 class="text-lg font-semibold mb-4 text-gray-800">المعلومات الأساسية</h3>
+                                 <div class="mb-4">
+                                     <label for="product-title" class="block text-sm font-medium text-gray-700 mb-1">عنوان المنتج <span class="text-red-600">*</span></label>
+                                     <input type="text" id="product-title" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+                                 </div>
+                                 <div>
+                                     <label for="product-description" class="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
+                                     <textarea id="product-description" rows="5" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
+                                 </div>
+                             </div>
+
+                              <!-- الصور العامة -->
+                             <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                                 <h3 class="text-lg font-semibold mb-3 text-gray-800">الصور العامة</h3>
+                                 <div id="general-image-dropzone" class="border-2 border-dashed border-gray-300 rounded-md p-6 text-center hover:border-blue-500 transition-colors">
+                                     <label for="general-image-upload" class="cursor-pointer">
+                                        <i data-lucide="upload-cloud" class="w-10 h-10 text-gray-400 mx-auto mb-2"></i>
+                                        <span class="text-blue-600 font-medium">اختر صورًا</span>
+                                        <p class="text-xs text-gray-500 mt-1">أو اسحبها وأفلتها هنا</p>
+                                        <input type="file" id="general-image-upload" multiple class="hidden" accept="image/*">
+                                     </label>
+                                 </div>
+                                 <div id="general-image-preview" class="mt-4 grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                                     <!-- سيتم عرض الصور هنا -->
+                                 </div>
+                             </div>
+
+                             <!-- الخيارات (الألوان والمقاسات) -->
+                             <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                                 <h3 class="text-lg font-semibold mb-4 text-gray-800">الخيارات (Variants)</h3>
+                                 <!-- اختيار الألوان -->
+                                 <div class="mb-5">
+                                     <label class="block text-sm font-medium text-gray-700 mb-2">الألوان المتاحة</label>
+                                     <div id="color-picker-container" class="flex flex-wrap gap-3 items-center">
+                                         <!-- سيتم ملء الألوان هنا -->
+                                     </div>
+                                     <div class="mt-3">
+                                         <label for="custom-color-input" class="inline-flex items-center space-x-2 space-x-reverse text-sm text-gray-600 cursor-pointer hover:text-blue-600">
+                                             <input type="color" id="custom-color-input" class="w-7 h-7 border-none p-0 cursor-pointer rounded-full shadow" title="اختر لون مخصص">
+                                             <span>إضافة لون مخصص</span>
+                                         </label>
+                                     </div>
+                                 </div>
+
+                                 <!-- حاوية إدارة المتغيرات حسب اللون -->
+                                 <div id="color-variant-managers" class="space-y-5 mt-6 pt-5 border-t border-gray-200">
+                                     <!-- سيتم ملء مدير كل لون هنا -->
+                                 </div>
+                             </div>
+                         </div>
+
+                         <!-- العمود الأيسر (الجانبي) -->
+                         <div class="lg:col-span-1 space-y-6">
+                             <!-- التسعير والمخزون -->
+                             <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                                 <h3 class="text-lg font-semibold mb-4 text-gray-800">التسعير والمخزون</h3>
+                                 <!-- جدول المتغيرات (يظهر عند اختيار ألوان) -->
+                                 <div id="variants-table-container" class="hidden">
+                                     <p class="text-xs text-gray-500 mb-3">أدخل سعر وكمية كل متغير متاح.</p>
+                                     <div class="overflow-x-auto max-h-96">
+                                         <table class="min-w-full text-sm border-collapse border border-gray-200">
+                                             <thead class="bg-gray-100 sticky top-0">
+                                                 <tr>
+                                                     <th class="p-2 text-right border border-gray-200">المتغير</th>
+                                                     <th class="p-2 text-right border border-gray-200">السعر (دج) <span class="text-red-600">*</span></th>
+                                                     <th class="p-2 text-right border border-gray-200">المخزون <span class="text-red-600">*</span></th>
+                                                 </tr>
+                                             </thead>
+                                             <tbody id="variants-table-body" class="divide-y divide-gray-200">
+                                                 <!-- سيتم ملء الصفوف هنا -->
+                                                 <tr><td colspan="3" class="p-3 text-center text-gray-500 text-xs">اختر الألوان والمقاسات أولاً.</td></tr>
+                                             </tbody>
+                                         </table>
+                                     </div>
+                                 </div>
+                                 <!-- تسعير المنتج البسيط (يظهر إن لم يكن هناك ألوان) -->
+                                 <div id="simple-pricing-container" class="space-y-4">
+                                      <div>
+                                         <label for="simple-price" class="block text-sm font-medium text-gray-700 mb-1">سعر البيع (دج) <span class="text-red-600">*</span></label>
+                                         <input type="number" id="simple-price" step="0.01" min="0" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                     </div>
+                                     <div>
+                                         <label for="simple-stock" class="block text-sm font-medium text-gray-700 mb-1">الكمية في المخزون <span class="text-red-600">*</span></label>
+                                         <input type="number" id="simple-stock" min="0" class="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+                 </form>
+            </section>
+
+
+            <!-- صفحة عرض طلبات الأدمن -->
+            <section id="page-admin-orders" class="page">
+                <h1 class="text-3xl font-bold text-gray-900 mb-6">الطلبات</h1>
+                <div class="bg-white shadow-md rounded-lg overflow-x-auto border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">العميل</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الإجمالي</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">الحالة</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">التاريخ</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-order-list" class="bg-white divide-y divide-gray-200">
+                            <!-- سيتم ملء الطلبات هنا -->
+                             <tr><td colspan="6" class="text-center p-8 text-gray-500"><div class="loader mx-auto"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                 <!-- (يمكن إضافة Pagination هنا لاحقاً) -->
+            </section>
+
+            <!-- صفحة تفاصيل طلب للأدمن -->
+            <section id="page-admin-order-detail" class="page"></section>
+
+            <!-- صفحة إعدادات الأدمن (ياليدين) -->
+            <section id="page-admin-settings" class="page">
+                <h1 class="text-3xl font-bold text-gray-900 mb-6">الإعدادات</h1>
+                <div class="max-w-2xl">
+                    <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
+                        <h3 class="text-xl font-semibold mb-4 text-gray-800">إعدادات شحن Yalidine</h3>
+                        <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-5 rounded-r-md" role="alert">
+                            <p class="font-bold">تنبيه أمني!</p>
+                            <p class="text-sm">هذه المفاتيح تُخزن في المتصفح (`localStorage`) وهي **غير آمنة** للبيئة الإنتاجية. هذا الحل هو للمحاكاة فقط. في المشروع الحقيقي، يجب أن تبقى هذه المفاتيح في الخادم (Server) فقط.</p>
+                        </div>
+                        <form id="yalidine-settings-form" class="space-y-4">
+                            <div>
+                                <label for="yalidine-api-id" class="block text-sm font-medium text-gray-700 mb-1">Yalidine API ID</label>
+                                <input type="text" id="yalidine-api-id" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="مفتاح API الخاص بك من Yalidine">
+                            </div>
+                            <div>
+                                <label for="yalidine-api-token" class="block text-sm font-medium text-gray-700 mb-1">Yalidine API Token</label>
+                                <input type="text" id="yalidine-api-token" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="رمز API الخاص بك من Yalidine">
+                            </div>
+                            <button type="submit" class="bg-blue-600 text-white py-2 px-5 rounded-md font-medium hover:bg-blue-700 transition-colors">
+                                حفظ الإعدادات
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- ====================================================== -->
+        <!-- ================== المودال (Modal) ================== -->
+        <!-- ====================================================== -->
+        <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden opacity-0 modal" style="transition: opacity 0.3s ease;"></div>
+        <div id="modal-container" class="fixed inset-0 z-[60] flex items-center justify-center p-4 hidden opacity-0 scale-95 modal" style="transition: opacity 0.3s ease, transform 0.3s ease;">
+            <div id="modal-content" class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6 text-center transform transition-all">
+                <!-- سيتم ملء محتوى المودال هنا -->
+                 <div class="loader mx-auto"></div>
+            </div>
+        </div>
+
+        <!-- Toast Notification Container -->
+         <div id="toast-container" class="fixed bottom-5 left-5 z-[70] space-y-3"></div>
+
+    </div> <!-- نهاية حاوية التطبيق -->
+
+    <!-- ====================================================== -->
+    <!-- ================== بداية كود JavaScript ================== -->
+    <!-- ====================================================== -->
+    <script type="module">
+        // انتظر تحميل الأيقونات
+        lucide.createIcons();
+
+        // ==========================================
+        // النظام الأساسي: التخزين، الحالة، والراوتر
+        // ==========================================
+
+        // 1. كلمة سر الأدمن (غيّرها!)
+        const ADMIN_PASSWORD = 'admin123';
+        // 2. نقطة نهاية API (افتراضية إذا لم يتم توفيرها)
+        // هام: في Netlify، لا تحتاج لـ 'localhost:8000'. يمكنك استخدام المسارات النسبية مباشرة
+        // أو إعداد proxy في netlify.toml. هنا سنستخدم مساراً نسبياً افتراضياً.
+        const API_BASE_URL = '/api'; // افترض أن Netlify Functions ستكون متاحة على /api
+
+        // 3. محاكاة قاعدة البيانات (Database) باستخدام localStorage
+        const db = {
+            get: (key, defaultValue = null) => {
+                try {
+                    const item = localStorage.getItem(key);
+                    return item ? JSON.parse(item) : defaultValue;
+                } catch (e) {
+                    console.error(`Failed to get from localStorage: ${key}`, e);
+                    return defaultValue;
+                }
+            },
+            set: (key, value) => {
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                } catch (e) {
+                    console.error(`Failed to save to localStorage: ${key}`, e);
+                }
+            }
+        };
+
+        // 4. الحالة العامة للتطبيق (In-Memory State with Initialization)
+        const state = {
+            products: db.get('products', []), // بيانات المنتجات تحفظ محلياً
+            cart: db.get('cart', []),
+            orders: db.get('orders', []), // طلبات العميل تحفظ محلياً
+            yalidineSettings: db.get('yalidineSettings', {}), // مفاتيح API وهمية تحفظ محلياً
+            lastFetched: { // لتخزين وقت آخر جلب لبيانات Yalidine
+                wilayas: 0,
+                communes: {}, // wilayaId: timestamp
+                fees: {},     // wilayaId: timestamp
+                centers: {}   // wilayaId: timestamp
+            },
+            cache: { // لتخزين بيانات Yalidine مؤقتاً
+                 wilayas: db.get('yalidine_wilayas_cache'),
+                 communes: db.get('yalidine_communes_cache', {}),
+                 fees: db.get('yalidine_fees_cache', {}),
+                 centers: db.get('yalidine_centers_cache', {})
+            }
+        };
+        const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 ساعة بالميلي ثانية
+
+        // 5. الراوتر (Router) لإدارة الصفحات
+        const router = () => {
+            // إخفاء جميع الصفحات
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+
+            // التحقق من حالة تسجيل دخول الأدمن
+            const admin = isAdmin();
+            document.getElementById('customer-header').classList.toggle('hidden', admin);
+            document.getElementById('admin-header').classList.toggle('hidden', !admin);
+
+            const hash = window.location.hash || '#/';
+            let pageId = '';
+            let params = null;
+
+            // --- توجيه العميل ---
+            if (hash === '#/') {
+                pageId = 'page-shop';
+                renderShopPage();
+            } else if (hash.startsWith('#/product/')) {
+                pageId = 'page-product-detail';
+                params = hash.split('/')[2];
+                renderProductDetailPage(params);
+            } else if (hash === '#/cart') {
+                pageId = 'page-cart';
+                renderCartPage();
+            } else if (hash === '#/checkout') {
+                pageId = 'page-checkout';
+                renderCheckoutPage();
+            }
+            // --- توجيه الأدمن ---
+            else if (hash === '#/admin') {
+                pageId = 'page-admin-login';
+                if (admin) { goTo('#/admin/dashboard'); return; } // إعادة توجيه إذا كان مسجلاً
+            } else if (hash === '#/admin/dashboard') {
+                pageId = 'page-admin-dashboard';
+                if (!admin) { goTo('#/admin'); return; }
+            } else if (hash === '#/admin/products') {
+                pageId = 'page-admin-products';
+                if (!admin) { goTo('#/admin'); return; }
+                renderAdminProductList();
+            } else if (hash === '#/admin/products/new') {
+                pageId = 'page-admin-product-form';
+                if (!admin) { goTo('#/admin'); return; }
+                renderProductForm(); // وضع الإضافة
+            } else if (hash.startsWith('#/admin/products/edit/')) {
+                 pageId = 'page-admin-product-form';
+                 params = hash.split('/')[4];
+                 if (!admin) { goTo('#/admin'); return; }
+                 const productToEdit = state.products.find(p => p.id == params);
+                 renderProductForm(productToEdit); // وضع التعديل
+            } else if (hash === '#/admin/orders') {
+                pageId = 'page-admin-orders';
+                if (!admin) { goTo('#/admin'); return; }
+                renderAdminOrderList();
+            } else if (hash.startsWith('#/admin/orders/')) {
+                pageId = 'page-admin-order-detail';
+                params = hash.split('/')[3];
+                if (!admin) { goTo('#/admin'); return; }
+                renderOrderDetailPage(params);
+            } else if (hash === '#/admin/settings') {
+                pageId = 'page-admin-settings';
+                if (!admin) { goTo('#/admin'); return; }
+                renderSettingsPage();
+            } else {
+                 // إذا لم يتطابق أي مسار، انتقل للمتجر
+                 goTo('#/');
+                 return; // أوقف التنفيذ هنا لتجنب إظهار صفحة خاطئة
+            }
+
+            // إظهار الصفحة المحددة
+            const activePage = document.getElementById(pageId);
+            if (activePage) {
+                activePage.classList.add('active');
+            } else {
+                // صفحة خطأ 404 أو العودة للرئيسية (احتياطي)
+                console.error("Page not found for hash:", hash);
+                document.getElementById('page-shop').classList.add('active');
+                renderShopPage();
+            }
+
+            // إعادة الأيقونات والانتقال للأعلى
+            lucide.createIcons();
+            window.scrollTo(0, 0);
+        };
+
+        // 6. وظائف مساعدة (Helpers)
+        const goTo = (hash) => window.location.hash = hash;
+        const isAdmin = () => sessionStorage.getItem('isAdmin') === 'true';
+
+        // عرض المودال
+        const showModal = (content, size = 'max-w-sm') => {
+             const modalContent = document.getElementById('modal-content');
+             modalContent.innerHTML = content;
+             modalContent.className = `bg-white rounded-lg shadow-xl w-full p-6 text-center transform transition-all ${size}`; // Apply size class
+
+             const backdrop = document.getElementById('modal-backdrop');
+             const container = document.getElementById('modal-container');
+
+             backdrop.classList.remove('hidden');
+             container.classList.remove('hidden');
+
+             // Force reflow to enable transition
+             void container.offsetWidth;
+
+             backdrop.classList.add('opacity-100');
+             container.classList.add('opacity-100', 'scale-100');
+             container.classList.remove('opacity-0', 'scale-95');
+             lucide.createIcons(); // Render icons inside modal
+         };
+
+         // إخفاء المودال
+         const hideModal = () => {
+             const backdrop = document.getElementById('modal-backdrop');
+             const container = document.getElementById('modal-container');
+
+             backdrop.classList.remove('opacity-100');
+             container.classList.remove('opacity-100', 'scale-100');
+             container.classList.add('opacity-0', 'scale-95');
+
+             setTimeout(() => {
+                 backdrop.classList.add('hidden');
+                 container.classList.add('hidden');
+                 document.getElementById('modal-content').innerHTML = '<div class="loader mx-auto"></div>'; // Reset content
+             }, 300); // Match transition duration
+         };
+
+        // عرض رسالة (Toast)
+         const showToast = (message, type = 'success', duration = 3000) => {
+             const container = document.getElementById('toast-container');
+             const toast = document.createElement('div');
+             const bgColor = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : 'bg-blue-600');
+             const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'x-circle' : 'info');
+
+             toast.className = `flex items-center space-x-3 space-x-reverse ${bgColor} text-white py-3 px-5 rounded-lg shadow-xl transition-all duration-300 transform translate-y-full opacity-0`;
+             toast.innerHTML = `
+                 <i data-lucide="${icon}" class="w-5 h-5"></i>
+                 <p>${message}</p>
+                 <button class="ml-auto -mr-1 p-1 hover:bg-black/20 rounded-full">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                 </button>
+             `;
+             container.appendChild(toast);
+             lucide.createIcons();
+
+             // Add close button listener
+             toast.querySelector('button').addEventListener('click', () => {
+                  toast.classList.add('opacity-0', 'translate-y-full');
+                  setTimeout(() => toast.remove(), 300);
+             });
+
+             // Animate in
+             setTimeout(() => {
+                 toast.classList.remove('translate-y-full', 'opacity-0');
+                 toast.classList.add('translate-y-0', 'opacity-100');
+             }, 100);
+
+             // Auto dismiss
+             setTimeout(() => {
+                  toast.classList.add('opacity-0', 'translate-y-full');
+                  setTimeout(() => toast.remove(), 300);
+             }, duration);
+         };
+
+        // دالة fetch مع معالجة الأخطاء الأساسية
+        const apiFetch = async (endpoint, options = {}) => {
+            // **هام: هذا سيستخدم المفاتيح المخزنة محلياً (غير آمن)**
+            // في بيئة حقيقية، سيتم هذا الطلب من الخادم
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                // المفروض هذه تكون في الخادم فقط
+                'X-API-ID': state.yalidineSettings.apiId || 'DUMMY_ID', // استخدم قيمة وهمية إذا لم تكن موجودة
+                'X-API-TOKEN': state.yalidineSettings.apiToken || 'DUMMY_TOKEN', // استخدم قيمة وهمية
+                ...options.headers,
+            };
+
+            // **محاكاة استدعاء Yalidine API مباشرة من المتصفح (غير آمن ويحتمل حظره بـ CORS)**
+            // ملاحظة: لا يمكننا استخدام PHP هنا، سنستخدم fetch مباشرة لواجهة Yalidine
+             // استخدام بروكسي Netlify (إذا تم إعداده) أو رابط مباشر (قد يفشل بسبب CORS)
+            const YALIDINE_BASE_URL = '/yalidine-api'; // افترض أن البروكسي معد في netlify.toml ليشير لـ https://api.yalidine.app/v1
+            const url = `${YALIDINE_BASE_URL}${endpoint}`; // استخدام المسار النسبي للبروكسي
+
+            try {
+                console.log(`Fetching: ${url} with params:`, options.params);
+                const queryParams = new URLSearchParams(options.params || {}).toString();
+                const fullUrl = queryParams ? `${url}?${queryParams}` : url;
+
+                const response = await fetch(fullUrl, {
+                    method: options.method || 'GET',
+                    headers: headers,
+                    body: options.body ? JSON.stringify(options.body) : null,
+                });
+
+                if (!response.ok) {
+                    let errorData;
+                    try {
+                        errorData = await response.json();
+                    } catch(e) {
+                         errorData = { message: `HTTP error! status: ${response.status}` };
+                    }
+                    console.error('API Error Response:', errorData);
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                console.log('API Success Response:', data);
+                return data;
+
+            } catch (error) {
+                console.error(`API Fetch Error (${url}):`, error);
+                showToast(`خطأ في الاتصال بالخادم: ${error.message}`, 'error');
+                throw error; // أعد رمي الخطأ ليتم التعامل معه في المكان الذي تم استدعاء الدالة منه
+            }
+        };
+
+        // دالة لجلب بيانات Yalidine مع التخزين المؤقت (Caching)
+         const fetchYalidineData = async (type, params = {}) => {
+             const now = Date.now();
+             let cacheKey = type;
+             let lastFetchTime = state.lastFetched[type];
+             let cachedData = state.cache[type];
+             let endpoint = '';
+             let specificCacheKey = null; // للمفاتيح المعتمدة على parameters مثل wilaya_id
+
+             switch (type) {
+                 case 'wilayas':
+                     endpoint = '/wilayas';
+                     params.page_size = params.page_size || 60; // Ensure page size
+                     break;
+                 case 'communes':
+                     endpoint = '/communes';
+                     params.page_size = params.page_size || 1600;
+                     if (!params.wilaya_id) throw new Error("wilaya_id is required for communes");
+                     specificCacheKey = params.wilaya_id.toString();
+                     lastFetchTime = state.lastFetched.communes[specificCacheKey] || 0;
+                     cachedData = state.cache.communes[specificCacheKey];
+                     break;
+                 case 'fees': // Changed from 'shippingCost' to 'fees' to match Yalidine endpoint
+                     endpoint = '/fees';
+                      // افترض أن الشحن دائماً من ولاية الجزائر (16) كما في الكود PHP
+                     params.from_wilaya_id = 16;
+                     if (!params.to_wilaya_id) throw new Error("to_wilaya_id is required for fees");
+                     specificCacheKey = params.to_wilaya_id.toString();
+                     lastFetchTime = state.lastFetched.fees[specificCacheKey] || 0;
+                     cachedData = state.cache.fees[specificCacheKey];
+                     break;
+                 case 'centers': // Changed from 'deliveryCenters' to 'centers'
+                     endpoint = '/communes'; // Centers are communes with has_stop_desk = true
+                     params.page_size = params.page_size || 1600;
+                     if (!params.wilaya_id) throw new Error("wilaya_id is required for centers");
+                     specificCacheKey = params.wilaya_id.toString();
+                     lastFetchTime = state.lastFetched.centers[specificCacheKey] || 0;
+                     cachedData = state.cache.centers[specificCacheKey];
+                     break;
+                 default:
+                     throw new Error(`Invalid Yalidine data type: ${type}`);
+             }
+
+             // Check cache
+             if (cachedData && (now - lastFetchTime < CACHE_DURATION)) {
+                  console.log(`Using cached data for ${type}` + (specificCacheKey ? ` (${specificCacheKey})` : ''));
+                  // Handle filtering for centers from cached communes
+                  if (type === 'centers' && cachedData.data) {
+                      const centers = cachedData.data.filter(c => c.has_stop_desk);
+                      return { data: centers, total: centers.length }; // Return format similar to API for consistency
+                  }
+                 return cachedData;
+             }
+
+              console.log(`Fetching fresh data for ${type}` + (specificCacheKey ? ` (${specificCacheKey})` : ''));
+
+             // Fetch fresh data
+             try {
+                const data = await apiFetch(endpoint, { params: params });
+
+                 // Handle centers filtering after fetching communes
+                 if (type === 'centers') {
+                     const communesData = data; // Rename for clarity
+                     if (communesData && communesData.data) {
+                         const centers = communesData.data.filter(c => c.has_stop_desk);
+                         const centersResponse = { data: centers, total: centers.length };
+
+                         // Update cache and last fetched time
+                         state.cache.centers[specificCacheKey] = centersResponse;
+                         state.lastFetched.centers[specificCacheKey] = now;
+                         db.set('yalidine_centers_cache', state.cache.centers); // Persist cache
+                         return centersResponse;
+                     } else {
+                          throw new Error("Invalid communes data received for centers");
+                     }
+                 } else {
+                      // Update cache and last fetched time for other types
+                      if (specificCacheKey) {
+                          state.cache[type][specificCacheKey] = data;
+                          state.lastFetched[type][specificCacheKey] = now;
+                      } else {
+                          state.cache[type] = data;
+                          state.lastFetched[type] = now;
+                      }
+                       // Persist cache
+                      if (type === 'wilayas') db.set('yalidine_wilayas_cache', state.cache.wilayas);
+                      else if (type === 'communes') db.set('yalidine_communes_cache', state.cache.communes);
+                      else if (type === 'fees') db.set('yalidine_fees_cache', state.cache.fees);
+
+                      return data;
+                 }
+
+
+             } catch (error) {
+                 console.error(`Failed to fetch Yalidine ${type}:`, error);
+                 // Return old cached data if fetch fails, but log error
+                  if (cachedData) {
+                       console.warn(`Returning stale cached data for ${type}` + (specificCacheKey ? ` (${specificCacheKey})` : ''));
+                       return cachedData;
+                  }
+                 throw error; // Re-throw if no cache available
+             }
+         };
+
+        // تهيئة التطبيق عند التحميل
+        const initializeApp = () => {
+            // إضافة مستمعين للأحداث
+            window.addEventListener('hashchange', router);
+            document.addEventListener('DOMContentLoaded', router);
+
+            // مستمع عام للأحداث (Event Delegation)
+            document.body.addEventListener('click', (e) => {
+                // لإغلاق المودال
+                if (e.target.id === 'modal-backdrop' || e.target.closest('.modal-close-btn')) {
+                    hideModal();
+                }
+            });
+
+            // مستمعين للأدمن (سيتم إضافتها فقط عند عرض الصفحة المعنية)
+            // ... (سيتم إضافة المستمعين لـ login, product form, settings form لاحقاً)
+
+            // تحديث عدد السلة عند التحميل
+            updateCartBadge();
+
+            // تنفيذ الراوتر لأول مرة
+            router();
+        };
+
+        // ==========================================
+        // منطق الأدمن (Admin Logic)
+        // ==========================================
+
+        // 1. تسجيل دخول الأدمن
+        const handleAdminLogin = (e) => {
+            e.preventDefault();
+            const password = document.getElementById('admin-password').value;
+            const errorEl = document.getElementById('admin-login-error');
+            if (password === ADMIN_PASSWORD) {
+                sessionStorage.setItem('isAdmin', 'true');
+                errorEl.classList.add('hidden');
+                goTo('#/admin/dashboard');
+            } else {
+                errorEl.textContent = 'كلمة المرور غير صحيحة.';
+                errorEl.classList.remove('hidden');
+            }
+        };
+
+        // 2. تسجيل خروج الأدمن
+        const handleAdminLogout = (e) => {
+            e.preventDefault();
+            sessionStorage.removeItem('isAdmin');
+            goTo('#/');
+        };
+
+        // 3. عرض صفحة إعدادات ياليدين
+        const renderSettingsPage = () => {
+             // إزالة المستمع القديم إن وجد
+             const form = document.getElementById('yalidine-settings-form');
+             const newForm = form.cloneNode(true);
+             form.parentNode.replaceChild(newForm, form);
+
+            document.getElementById('yalidine-api-id').value = state.yalidineSettings.apiId || '';
+            document.getElementById('yalidine-api-token').value = state.yalidineSettings.apiToken || '';
+            // إضافة مستمع جديد
+            newForm.addEventListener('submit', handleYalidineSettingsSubmit);
+        };
+
+        // 4. حفظ إعدادات ياليدين
+        const handleYalidineSettingsSubmit = (e) => {
+            e.preventDefault();
+            const apiId = document.getElementById('yalidine-api-id').value.trim();
+            const apiToken = document.getElementById('yalidine-api-token').value.trim();
+             if (!apiId || !apiToken) {
+                 showToast('يرجى إدخال مفتاح ورمز Yalidine API.', 'error');
+                 return;
+             }
+            state.yalidineSettings = { apiId, apiToken };
+            db.set('yalidineSettings', state.yalidineSettings);
+             // مسح الكاش عند تغيير الإعدادات لضمان جلب بيانات جديدة
+             clearYalidineCache();
+            showToast('تم حفظ الإعدادات بنجاح! سيتم استخدامها في المحاكاة.', 'success');
+        };
+
+         // دالة لمسح كاش ياليدين
+         const clearYalidineCache = () => {
+             state.lastFetched = { wilayas: 0, communes: {}, fees: {}, centers: {} };
+             state.cache = { wilayas: null, communes: {}, fees: {}, centers: {} };
+             localStorage.removeItem('yalidine_wilayas_cache');
+             localStorage.removeItem('yalidine_communes_cache');
+             localStorage.removeItem('yalidine_fees_cache');
+             localStorage.removeItem('yalidine_centers_cache');
+             console.log("Yalidine cache cleared.");
+         };
+
+        // 5. عرض قائمة منتجات الأدمن
+        const renderAdminProductList = () => {
+            const listEl = document.getElementById('admin-product-list');
+            if (!listEl) return;
+
+             // إعادة الربط للمستمعين
+             listEl.innerHTML = ''; // Clear previous listeners implicitly
+
+            if (state.products.length === 0) {
+                listEl.innerHTML = `<tr><td colspan="4" class="text-center p-8 text-gray-500">لا توجد منتجات. <a href="#/admin/products/new" class="text-blue-600 font-medium hover:underline">أضف منتجاً جديداً</a></td></tr>`;
+                return;
+            }
+
+            listEl.innerHTML = state.products.map(product => {
+                const defaultVariant = product.variants.find(v => v.is_default) || product.variants[0] || { price: 0, stock_quantity: 0};
+                const totalStock = product.variants.reduce((acc, v) => acc + (v.stock_quantity || 0), 0);
+                const firstImage = product.generalImages[0] || Object.values(product.variantImages)[0]?.[0];
+
+                return `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0 h-12 w-12">
+                                    <img class="h-12 w-12 rounded-md object-cover border" src="${firstImage ? firstImage.url : 'https://placehold.co/48x48/e2e8f0/a0aec0?text=??'}" alt="">
+                                </div>
+                                <div class="mr-4">
+                                    <div class="text-sm font-medium text-gray-900">${product.title}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${defaultVariant.price?.toLocaleString('fr-DZ')} د.ج</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm ${totalStock > 0 ? 'text-green-600' : 'text-red-600'} font-medium">${totalStock} في المخزون</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-left" dir="ltr">
+                            <a href="#/admin/products/edit/${product.id}" class="text-blue-600 hover:text-blue-900 transition-colors">تعديل</a>
+                            <button data-delete-product-id="${product.id}" class="text-red-600 hover:text-red-900 ml-3 transition-colors">حذف</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // إضافة مستمعين للحذف
+            listEl.querySelectorAll('[data-delete-product-id]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const idToDelete = e.currentTarget.dataset.deleteProductId;
+                    const productTitle = state.products.find(p => p.id == idToDelete)?.title || 'المنتج المحدد';
+                    showModal(`
+                        <div class="p-4 text-center">
+                             <i data-lucide="alert-triangle" class="w-16 h-16 text-red-500 mx-auto mb-4"></i>
+                             <h3 class="text-lg font-semibold mb-2">تأكيد الحذف</h3>
+                             <p class="text-gray-600 mb-6">هل أنت متأكد من حذف المنتج "${productTitle}"؟ لا يمكن التراجع عن هذا الإجراء.</p>
+                             <div class="flex justify-center space-x-4 space-x-reverse">
+                                 <button id="confirm-delete-btn" class="bg-red-600 text-white py-2 px-5 rounded-md font-medium hover:bg-red-700 transition-colors">
+                                     نعم، حذف
+                                 </button>
+                                 <button class="modal-close-btn bg-gray-200 text-gray-800 py-2 px-5 rounded-md font-medium hover:bg-gray-300 transition-colors">
+                                     إلغاء
+                                 </button>
+                             </div>
+                         </div>
+                    `);
+                    document.getElementById('confirm-delete-btn').onclick = () => {
+                         state.products = state.products.filter(p => p.id != idToDelete);
+                         db.set('products', state.products);
+                         renderAdminProductList(); // Refresh list
+                         hideModal();
+                         showToast('تم حذف المنتج بنجاح.', 'success');
+                    };
+                });
+            });
+        };
+
+        // 6. عرض قائمة طلبات الأدمن
+        const renderAdminOrderList = () => {
+            const listEl = document.getElementById('admin-order-list');
+             if (!listEl) return;
+             listEl.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-gray-500"><div class="loader mx-auto"></div></td></tr>`; // Show loader initially
+
+            // Simulate fetching orders (already loaded in state)
+             setTimeout(() => { // Simulate network delay
+                 const sortedOrders = [...state.orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                 if (sortedOrders.length === 0) {
+                     listEl.innerHTML = `<tr><td colspan="6" class="text-center p-8 text-gray-500">لا توجد طلبات لعرضها.</td></tr>`;
+                     return;
+                 }
+
+                 listEl.innerHTML = sortedOrders.map(order => {
+                     const statusInfo = getStatusBadge(order.status);
+                     return `
+                         <tr class="hover:bg-gray-50 transition-colors">
+                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">#${order.id}</td>
+                             <td class="px-6 py-4 whitespace-nowrap">
+                                 <div class="text-sm font-medium text-gray-900">${order.name}</div>
+                                 <div class="text-sm text-gray-500">${order.phone}</div>
+                             </td>
+                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-800 font-semibold">${order.grand_total.toLocaleString('fr-DZ')} د.ج</td>
+                             <td class="px-6 py-4 whitespace-nowrap text-center text-sm"><span class="${statusInfo.class} inline-block">${statusInfo.text}</span></td>
+                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(order.createdAt).toLocaleDateString('ar-DZ', { day: 'numeric', month: 'short', year: 'numeric'})}</td>
+                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-left" dir="ltr">
+                                 <a href="#/admin/orders/${order.id}" class="text-blue-600 hover:text-blue-900 transition-colors inline-flex items-center space-x-1">
+                                      <i data-lucide="eye" class="w-4 h-4"></i>
+                                      <span>عرض</span>
+                                 </a>
+                             </td>
+                         </tr>
+                     `;
+                 }).join('');
+                 lucide.createIcons();
+            }, 100); // Small delay to show loader
+        };
+
+        // 7. عرض تفاصيل الطلب للأدمن
+        const renderOrderDetailPage = (orderId) => {
+            const order = state.orders.find(o => o.id == orderId);
+            const pageEl = document.getElementById('page-admin-order-detail');
+
+            if (!order) {
+                pageEl.innerHTML = `<div class="bg-white p-6 rounded-lg shadow text-center"><h1 class="text-2xl font-bold text-red-600 mb-4">لم يتم العثور على الطلب.</h1><a href="#/admin/orders" class="text-blue-600 hover:underline">&larr; العودة لقائمة الطلبات</a></div>`;
+                return;
+            }
+
+            const statusInfo = getStatusBadge(order.status);
+            const subTotal = order.cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
+            pageEl.innerHTML = `
+                <div class="flex justify-between items-center mb-6 pb-4 border-b">
+                    <h1 class="text-2xl lg:text-3xl font-bold text-gray-900">تفاصيل الطلب #${order.id}</h1>
+                    <a href="#/admin/orders" class="text-blue-600 hover:text-blue-800 flex items-center space-x-2 space-x-reverse transition-colors">
+                        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                        <span>العودة للطلبات</span>
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- العمود الأيمن (الرئيسي) -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                            <div class="flex justify-between items-center mb-4 pb-4 border-b">
+                                <h3 class="text-lg font-semibold text-gray-800">المنتجات المطلوبة</h3>
+                                <span class="${statusInfo.class} inline-block">${statusInfo.text}</span>
+                            </div>
+                            <div class="space-y-4">
+                                ${order.cart.map(item => `
+                                    <div class="flex items-center space-x-4 space-x-reverse">
+                                        <img src="${item.image_url}" alt="${item.title}" class="w-16 h-20 rounded-md object-cover border flex-shrink-0">
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-semibold text-gray-900 truncate">${item.title}</p>
+                                            <p class="text-sm text-gray-500 truncate">${item.optionsText}</p>
+                                            <p class="text-sm text-gray-500">الكمية: ${item.quantity}</p>
+                                        </div>
+                                        <div class="text-left flex-shrink-0" dir="ltr">
+                                            <p class="font-semibold text-gray-900">${(item.price * item.quantity).toLocaleString('fr-DZ')} د.ج</p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <!-- ملخص السعر -->
+                            <div class="mt-6 pt-6 border-t border-gray-200 text-sm" dir="ltr">
+                                <div class="flex justify-between text-gray-600">
+                                    <span>Subtotal</span>
+                                    <span>${subTotal.toLocaleString('fr-DZ')} DZD</span>
+                                </div>
+                                <div class="flex justify-between text-gray-600 mt-2">
+                                    <span>Shipping</span>
+                                    <span>${order.shipping_cost.toLocaleString('fr-DZ')} DZD</span>
+                                </div>
+                                <div class="flex justify-between text-base font-bold text-gray-900 mt-4 pt-4 border-t border-gray-300">
+                                    <span>Total</span>
+                                    <span>${order.grand_total.toLocaleString('fr-DZ')} DZD</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- العمود الأيسر (الجانبي) -->
+                    <div class="lg:col-span-1 space-y-6">
+                        <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                            <h3 class="text-lg font-semibold mb-4 pb-4 border-b text-gray-800">معلومات العميل</h3>
+                            <div class="space-y-2 text-sm text-gray-700">
+                                <p><strong>الاسم:</strong> ${order.name}</p>
+                                <p><strong>الهاتف:</strong> <a href="tel:${order.phone}" class="text-blue-600 hover:underline">${order.phone}</a></p>
+                                <p><strong>الولاية:</strong> ${order.wilaya}</p>
+                                <p><strong>البلدية:</strong> ${order.commune}</p>
+                                <p><strong>العنوان:</strong> ${order.address}</p>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                            <h3 class="text-lg font-semibold mb-4 pb-4 border-b text-gray-800">إجراءات الطلب</h3>
+                            <div id="order-actions" class="space-y-3">
+                                <!-- سيتم ملء الأزرار هنا -->
+                                 <div class="loader mx-auto"></div>
+                            </div>
+                        </div>
+
+                         <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                             <h3 class="text-lg font-semibold mb-4 pb-4 border-b text-gray-800">تتبع الشحن (محاكاة)</h3>
+                             <div id="yalidine-tracking-info" class="space-y-3 text-sm">
+                                 <!-- سيتم ملء معلومات الشحن هنا -->
+                                  <p class="text-gray-500">جاري تحميل المعلومات...</p>
+                             </div>
+                         </div>
+                    </div>
+                </div>
+            `;
+
+            renderOrderActions(order); // استدعاء لعرض الأزرار
+            lucide.createIcons();
+        };
+
+        // 8. عرض أزرار إجراءات الطلب
+        const renderOrderActions = (order) => {
+            const container = document.getElementById('order-actions');
+             const trackingContainer = document.getElementById('yalidine-tracking-info');
+            if (!container || !trackingContainer) return;
+
+            let buttons = '';
+             let trackingInfo = `<p class="text-gray-500">لم يتم شحن الطلب بعد.</p>`;
+
+            // بناء الأزرار بناءً على الحالة
+            if (order.status === 'pending') {
+                buttons = `
+                    <button data-action="confirmed" class="w-full bg-green-600 text-white py-2 px-4 rounded-md font-medium hover:bg-green-700 flex items-center justify-center space-x-2 space-x-reverse transition-colors">
+                        <i data-lucide="check" class="w-4 h-4"></i> <span>تأكيد الطلب</span>
+                    </button>
+                    <button data-action="cancelled" class="w-full bg-red-600 text-white py-2 px-4 rounded-md font-medium hover:bg-red-700 flex items-center justify-center space-x-2 space-x-reverse transition-colors">
+                        <i data-lucide="x" class="w-4 h-4"></i> <span>إلغاء الطلب</span>
+                    </button>
+                `;
+            } else if (order.status === 'confirmed') {
+                buttons = `
+                    <button data-action="shipped" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 flex items-center justify-center space-x-2 space-x-reverse transition-colors">
+                        <i data-lucide="truck" class="w-4 h-4"></i> <span>تم الشحن (إنشاء تتبع وهمي)</span>
+                    </button>
+                     <p class="text-xs text-center text-gray-500 mt-2">سيؤدي هذا إلى إنشاء رقم تتبع وهمي.</p>
+                    <button data-action="cancelled" class="w-full bg-red-600 text-white py-2 px-4 rounded-md font-medium hover:bg-red-700 flex items-center justify-center space-x-2 space-x-reverse transition-colors mt-2">
+                        <i data-lucide="x" class="w-4 h-4"></i> <span>إلغاء الطلب</span>
+                    </button>
+                `;
+            } else if (order.status === 'shipped') {
+                buttons = `
+                    <button data-action="delivered" class="w-full bg-green-600 text-white py-2 px-4 rounded-md font-medium hover:bg-green-700 flex items-center justify-center space-x-2 space-x-reverse transition-colors">
+                        <i data-lucide="check-check" class="w-4 h-4"></i> <span>تم التسليم</span>
+                    </button>
+                    <button data-action="returned" class="w-full bg-yellow-600 text-gray-800 py-2 px-4 rounded-md font-medium hover:bg-yellow-500 flex items-center justify-center space-x-2 space-x-reverse transition-colors mt-2">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> <span>إرجاع الطلب</span>
+                    </button>
+                `;
+                 if(order.yalidine_tracking_id) {
+                     trackingInfo = `
+                         <p><strong>رقم التتبع:</strong></p>
+                         <p class="text-base font-bold text-blue-700 mb-2">${order.yalidine_tracking_id}</p>
+                         <p class="text-xs text-gray-500">(هذا رقم تتبع وهمي للمحاكاة)</p>
+                     `;
+                 }
+            } else if (order.status === 'delivered') {
+                buttons = `<p class="text-center font-medium text-green-600 py-2 px-4 bg-green-100 rounded-md">✅ تم تسليم هذا الطلب.</p>`;
+                 if(order.yalidine_tracking_id) trackingInfo = `<p><strong>رقم التتبع:</strong> ${order.yalidine_tracking_id}</p><p class="text-green-600 font-medium">تم التسليم</p>`;
+            } else if (order.status === 'cancelled') {
+                buttons = `<p class="text-center font-medium text-red-600 py-2 px-4 bg-red-100 rounded-md">❌ تم إلغاء هذا الطلب.</p>`;
+                trackingInfo = `<p class="text-red-600 font-medium">ملغي</p>`
+            } else if (order.status === 'returned') {
+                buttons = `<p class="text-center font-medium text-yellow-700 py-2 px-4 bg-yellow-100 rounded-md">↩️ تم إرجاع هذا الطلب.</p>`;
+                 if(order.yalidine_tracking_id) trackingInfo = `<p><strong>رقم التتبع:</strong> ${order.yalidine_tracking_id}</p><p class="text-yellow-700 font-medium">تم الإرجاع</p>`;
+            }
+
+            container.innerHTML = buttons;
+            trackingContainer.innerHTML = trackingInfo;
+            lucide.createIcons();
+
+            // إضافة مستمعين للأزرار
+            container.querySelectorAll('button[data-action]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                     const newStatus = btn.dataset.action;
+                     let confirmMsg = `هل أنت متأكد من تغيير حالة الطلب إلى "${getStatusBadge(newStatus).text}"؟`;
+                     if (newStatus === 'cancelled' || newStatus === 'returned') {
+                         confirmMsg += "\nسيتم استعادة المخزون للمنتجات في هذا الطلب.";
+                     }
+
+                     showModal(`
+                         <div class="p-4 text-center">
+                             <i data-lucide="help-circle" class="w-16 h-16 text-blue-500 mx-auto mb-4"></i>
+                             <h3 class="text-lg font-semibold mb-2">تأكيد الإجراء</h3>
+                             <p class="text-gray-600 mb-6">${confirmMsg}</p>
+                             <div class="flex justify-center space-x-4 space-x-reverse">
+                                 <button id="confirm-action-btn" class="bg-blue-600 text-white py-2 px-5 rounded-md font-medium hover:bg-blue-700 transition-colors">
+                                     نعم، تغيير الحالة
+                                 </button>
+                                 <button class="modal-close-btn bg-gray-200 text-gray-800 py-2 px-5 rounded-md font-medium hover:bg-gray-300 transition-colors">
+                                     إلغاء
+                                 </button>
+                             </div>
+                         </div>
+                     `);
+                     document.getElementById('confirm-action-btn').onclick = () => {
+                          hideModal();
+                         // منطق خاص لإنشاء تتبع وهمي
+                         if (newStatus === 'shipped') {
+                             if (!order.yalidine_tracking_id) {
+                                 order.yalidine_tracking_id = `YAL-${Date.now().toString().slice(-7)}`;
+                             }
+                         }
+                         handleUpdateOrderStatus(order.id, newStatus);
+                     };
+                });
+            });
+        };
+
+        // 9. تحديث حالة الطلب (مع منطق استعادة المخزون)
+         const handleUpdateOrderStatus = (orderId, newStatus) => {
+             const orderIndex = state.orders.findIndex(o => o.id == orderId);
+             if (orderIndex === -1) return;
+
+             const order = state.orders[orderIndex];
+             const originalStatus = order.status;
+
+             if (originalStatus === newStatus) return;
+
+             // منطق استعادة/إزالة المخزون (محاكاة PHP)
+             const shouldRestoreStock = (newStatus === 'cancelled' || newStatus === 'returned');
+             const wasStockRemoved = (originalStatus !== 'cancelled' && originalStatus !== 'returned' && originalStatus !== 'pending'); // Stock removed on confirm/ship
+
+             let stockChanged = false;
+
+             if (shouldRestoreStock && wasStockRemoved) {
+                 // استعادة المخزون
+                 for (const item of order.cart) {
+                     const productIndex = state.products.findIndex(p => p.id == item.product_id);
+                     if (productIndex > -1) {
+                         const variantIndex = state.products[productIndex].variants.findIndex(v => v.id == item.variant_id);
+                         if (variantIndex > -1) {
+                             state.products[productIndex].variants[variantIndex].stock_quantity += item.quantity;
+                             stockChanged = true;
+                         }
+                     }
+                 }
+                 if(stockChanged) showToast('تم استعادة المخزون.');
+             } else if (!shouldRestoreStock && !wasStockRemoved && (newStatus === 'confirmed' || newStatus === 'shipped')) {
+                 // إزالة المخزون عند التأكيد أو الشحن (إذا كان قيد الانتظار)
+                 try {
+                     for (const item of order.cart) {
+                          const productIndex = state.products.findIndex(p => p.id == item.product_id);
+                          if (productIndex === -1) throw new Error(`Product not found for item ${item.title}`);
+                          const variantIndex = state.products[productIndex].variants.findIndex(v => v.id == item.variant_id);
+                          if (variantIndex === -1) throw new Error(`Variant not found for item ${item.title}`);
+
+                          if (state.products[productIndex].variants[variantIndex].stock_quantity < item.quantity) {
+                             throw new Error(`Insufficient stock for ${item.title} to confirm/ship.`);
+                          }
+                          state.products[productIndex].variants[variantIndex].stock_quantity -= item.quantity;
+                          stockChanged = true;
+                     }
+                 } catch (error) {
+                      showToast(`خطأ في تحديث المخزون: ${error.message}`, 'error');
+                      return; // لا تغير الحالة إذا فشل تحديث المخزون
+                 }
+             }
+
+             // تحديث حالة الطلب
+             order.status = newStatus;
+             state.orders[orderIndex] = order;
+             db.set('orders', state.orders);
+             if (stockChanged) {
+                  db.set('products', state.products); // حفظ المخزون المحدث
+             }
+
+             showToast(`تم تحديث حالة الطلب إلى: ${getStatusBadge(newStatus).text}`, 'success');
+
+             // إعادة عرض الصفحة
+             renderOrderDetailPage(orderId);
+             // قد تحتاج أيضاً لتحديث قائمة الطلبات إذا كانت الحالة تؤثر على كيفية عرضها
+             if (document.getElementById('page-admin-orders').classList.contains('active')) {
+                 renderAdminOrderList();
+             }
+         };
+
+        // 10. عرض شارة الحالة (Badge)
+        const getStatusBadge = (status) => {
+            const statuses = {
+                 pending: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300', text: 'قيد الانتظار' },
+                 confirmed: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 border border-blue-300', text: 'مؤكد' },
+                 shipped: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-indigo-100 text-indigo-800 border border-indigo-300', text: 'تم الشحن' },
+                 delivered: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 border border-green-300', text: 'تم التسليم' },
+                 cancelled: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800 border border-red-300', text: 'ملغي' },
+                 returned: { class: 'px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 border border-gray-300', text: 'مرتجع' }
+            };
+            return statuses[status] || { class: 'px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 border border-gray-300', text: status };
+        };
+
+
+        // ==========================================
+        // منطق إضافة/تعديل منتج (Product Form Logic)
+        // ==========================================
+
+        let currentProductId = null; // لتحديد ما إذا كنا نضيف أو نعدل
+        let currentGeneralImages = []; // { id: '...', url: 'base64...' }
+        let currentColorSpecificData = {}; // { "#ffffff": { images: [], sizes: [] } }
+        let currentSelectedColors = []; // [ { name: "White", hex: "#ffffff" } ]
+
+        const PREDEFINED_COLORS = [
+             { name: "White", hex: "#FFFFFF" }, { name: "Black", hex: "#000000" }, { name: "Red", hex: "#FF0000" },
+             { name: "Green", hex: "#008000" }, { name: "Blue", hex: "#0000FF" }, { name: "Yellow", hex: "#FFFF00" },
+             { name: "Purple", hex: "#800080" }, { name: "Pink", hex: "#FFC0CB" }, { name: "Orange", hex: "#FFA500" },
+             { name: "Brown", hex: "#A52A2A" }, { name: "Gray", hex: "#808080" }, { name: "Beige", hex: "#F5F5DC" },
+             // يمكنك إضافة المزيد
+         ];
+         const SIZES = ['STANDARD', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL']; // المقاسات المتاحة
+
+        // 1. عرض صفحة الفورم (إضافة أو تعديل)
+         const renderProductForm = (productToEdit = null) => {
+             // إعادة تعيين الحالة المؤقتة
+             currentProductId = null;
+             currentGeneralImages = [];
+             currentColorSpecificData = {};
+             currentSelectedColors = [];
+
+             const form = document.getElementById('product-form');
+              // إزالة المستمعين القدامى وإعادة تعيين الفورم
+             const newForm = form.cloneNode(true);
+             form.parentNode.replaceChild(newForm, form);
+
+             const titleEl = document.getElementById('product-form-title');
+             const titleInput = document.getElementById('product-title');
+             const descInput = document.getElementById('product-description');
+
+
+             if (productToEdit) {
+                 // وضع التعديل
+                 currentProductId = productToEdit.id;
+                 titleEl.textContent = 'تعديل المنتج';
+                 titleInput.value = productToEdit.title;
+                 descInput.value = productToEdit.description;
+                 currentGeneralImages = [...productToEdit.generalImages]; // نسخ الصور
+                 currentColorSpecificData = JSON.parse(JSON.stringify(productToEdit.variantSpecificData || {})); // نسخ عميق
+                 currentSelectedColors = [...productToEdit.product_options.find(opt => opt.name === 'Couleur')?.values.map(v => ({name: v.value, hex: v.hex_code})) || []]; // استعادة الألوان
+
+                 // (لا يتم ملء حقول الأسعار والمخزون هنا، سيتم ملؤها عند تحديث الجدول/الواجهة)
+
+             } else {
+                 // وضع الإضافة
+                 titleEl.textContent = 'إضافة منتج جديد';
+                 // الفورم تم إعادة تعيينه بـ cloneNode
+             }
+
+             // إعادة عرض المكونات الفرعية للفورم وإضافة المستمعين الجدد
+             renderImagePreview('general-image-preview', currentGeneralImages, 'general');
+             renderColorPicker();
+             renderColorVariantManagers(); // سيعرض المديرين بناءً على currentSelectedColors
+             updatePricingUI(); // سيعرض جدول المتغيرات أو التسعير البسيط
+
+             // ربط المستمعين الجدد للفورم والعناصر داخله
+             newForm.addEventListener('submit', handleProductFormSubmit);
+             document.getElementById('general-image-upload').addEventListener('change', (e) => handleImageUpload(e, 'general'));
+             document.getElementById('custom-color-input').addEventListener('change', handleAddCustomColor);
+         };
+
+        // 2. عرض منتقي الألوان
+         const renderColorPicker = () => {
+             const container = document.getElementById('color-picker-container');
+             if (!container) return;
+             const selectedHex = new Set(currentSelectedColors.map(c => c.hex));
+
+             container.innerHTML = PREDEFINED_COLORS.map(color => `
+                 <button type="button" class="color-swatch ${selectedHex.has(color.hex) ? 'selected' : ''}" style="background-color: ${color.hex};" data-color-hex="${color.hex}" data-color-name="${color.name}" title="${color.name}">
+                     ${selectedHex.has(color.hex) ? `<i data-lucide="check" class="w-4 h-4 pointer-events-none" style="color: ${['#FFFFFF', '#FFFF00'].includes(color.hex) ? '#000' : '#FFF'};"></i>` : ''}
+                 </button>
+             `).join('');
+
+             // إضافة الألوان المخصصة التي تم اختيارها (إن وجدت)
+             currentSelectedColors.filter(c => !PREDEFINED_COLORS.find(p => p.hex === c.hex)).forEach(color => {
+                 container.innerHTML += `
+                     <button type="button" class="color-swatch selected" style="background-color: ${color.hex};" data-color-hex="${color.hex}" data-color-name="${color.name}" title="${color.name}">
+                         <i data-lucide="check" class="w-4 h-4 pointer-events-none" style="color: ${calculateContrastColor(color.hex)};"></i>
+                     </button>
+                 `;
+             });
+
+             lucide.createIcons();
+
+             // إضافة مستمعين للألوان
+             container.querySelectorAll('.color-swatch').forEach(swatch => {
+                 swatch.addEventListener('click', (e) => {
+                     e.preventDefault();
+                     const hex = e.currentTarget.dataset.colorHex;
+                     const name = e.currentTarget.dataset.colorName;
+                     toggleColor({ name, hex });
+                 });
+             });
+         };
+
+         // دالة لحساب لون التباين (أسود أو أبيض) لعلامة الصح
+         const calculateContrastColor = (hex) => {
+             if (!hex) return '#ffffff'; // Default to white if hex is invalid
+             const r = parseInt(hex.slice(1, 3), 16);
+             const g = parseInt(hex.slice(3, 5), 16);
+             const b = parseInt(hex.slice(5, 7), 16);
+             // Simple luminance calculation
+             const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+             return luminance > 0.5 ? '#000000' : '#ffffff';
+         };
+
+
+        // 3. إضافة لون مخصص
+         const handleAddCustomColor = (e) => {
+             const hex = e.target.value.toUpperCase(); // Ensure uppercase hex
+             const name = `لون مخصص ${hex}`;
+             const exists = currentSelectedColors.some(c => c.hex === hex) || PREDEFINED_COLORS.some(c => c.hex === hex);
+             if (!exists) {
+                 toggleColor({ name, hex });
+             } else {
+                 showToast('هذا اللون موجود بالفعل.', 'info');
+             }
+             // لا تقم بإعادة تعيين القيمة هنا، فقد يرغب المستخدم في تعديله قليلاً
+         };
+
+        // 4. تبديل (إضافة/إزالة) لون
+         const toggleColor = (color) => {
+             const index = currentSelectedColors.findIndex(c => c.hex === color.hex);
+             if (index > -1) {
+                 // تأكيد الإزالة
+                 showModal(`
+                     <div class="p-4 text-center">
+                          <i data-lucide="alert-triangle" class="w-16 h-16 text-yellow-500 mx-auto mb-4"></i>
+                          <h3 class="text-lg font-semibold mb-2">تأكيد الإزالة</h3>
+                          <p class="text-gray-600 mb-6">هل أنت متأكد من إزالة اللون "${color.name}" وكل بياناته (الصور والمقاسات)؟</p>
+                          <div class="flex justify-center space-x-4 space-x-reverse">
+                              <button id="confirm-remove-color" class="bg-red-600 text-white py-2 px-5 rounded-md font-medium hover:bg-red-700 transition-colors">
+                                  نعم، إزالة
+                              </button>
+                              <button class="modal-close-btn bg-gray-200 text-gray-800 py-2 px-5 rounded-md font-medium hover:bg-gray-300 transition-colors">
+                                  إلغاء
+                              </button>
+                          </div>
+                      </div>
+                 `);
+                  document.getElementById('confirm-remove-color').onclick = () => {
+                      currentSelectedColors.splice(index, 1);
+                      delete currentColorSpecificData[color.hex];
+                      hideModal();
+                      refreshProductFormUI(); // تحديث كامل لواجهة الفورم
+                  };
+             } else {
+                 // إضافة اللون
+                 currentSelectedColors.push(color);
+                 if (!currentColorSpecificData[color.hex]) {
+                     currentColorSpecificData[color.hex] = { images: [], sizes: [] };
+                 }
+                 refreshProductFormUI(); // تحديث كامل لواجهة الفورم
+             }
+         };
+
+         // دالة لتحديث واجهة الفورم بالكامل بعد تغيير الألوان
+         const refreshProductFormUI = () => {
+             renderColorPicker();
+             renderColorVariantManagers();
+             updatePricingUI();
+         };
+
+        // 5. عرض مديري المتغيرات (الصور والمقاسات لكل لون)
+         const renderColorVariantManagers = () => {
+             const container = document.getElementById('color-variant-managers');
+              if (!container) return;
+
+             if (currentSelectedColors.length === 0) {
+                 container.innerHTML = '<p class="text-sm text-center text-gray-500 py-4">اختر لونًا أولاً لإدارة صوره ومقاساته.</p>';
+                 return;
+             }
+
+             // الحفاظ على قيم الأسعار والمخزون المؤقتة
+             const tempVariantData = {};
+             document.querySelectorAll('#variants-table-body tr[data-variant-key]').forEach(row => {
+                 const key = row.dataset.variantKey;
+                 tempVariantData[key] = {
+                     price: row.querySelector('[data-variant-input="price"]').value,
+                     stock: row.querySelector('[data-variant-input="stock"]').value
+                 };
+             });
+
+
+             container.innerHTML = currentSelectedColors.map(color => {
+                 const data = currentColorSpecificData[color.hex] || { images: [], sizes: [] };
+                 return `
+                     <div class="border border-gray-200 rounded-lg overflow-hidden bg-white">
+                         <div class="flex justify-between items-center p-3 bg-gray-50 border-b border-gray-200" style="border-right: 4px solid ${color.hex};">
+                             <h4 class="font-semibold text-gray-700">متغيرات اللون: ${color.name} (${color.hex})</h4>
+                             <button type="button" class="text-red-500 hover:text-red-700 p-1 rounded-full hover:bg-red-100" data-remove-color="${color.hex}" title="إزالة هذا اللون وكل بياناته">
+                                 <i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>
+                             </button>
+                         </div>
+                         <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <!-- قسم الصور للون -->
+                             <div>
+                                 <h5 class="text-sm font-medium text-gray-700 mb-2">صور هذا اللون</h5>
+                                 <label class="border-2 border-dashed border-gray-300 rounded-md p-4 text-center block cursor-pointer text-blue-600 hover:border-blue-500 hover:bg-blue-50 transition-colors text-sm">
+                                      <i data-lucide="image-plus" class="w-6 h-6 mx-auto mb-1 text-gray-400"></i>
+                                     + إضافة صور
+                                     <input type="file" class="hidden" multiple accept="image/*" data-color-hex-upload="${color.hex}">
+                                 </label>
+                                 <div class="mt-4 grid grid-cols-3 gap-3" data-image-preview-for="${color.hex}">
+                                     ${data.images.map((img, index) => `
+                                         <div class="relative group image-preview-item">
+                                             <img src="${img.url}" class="w-full h-24 object-cover rounded-md border border-gray-200">
+                                             <button type="button" class="remove-image-btn" data-remove-image="${color.hex}" data-image-id="${img.id}">
+                                                 <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
+                                             </button>
+                                         </div>
+                                     `).join('')}
+                                      ${data.images.length === 0 ? '<p class="col-span-3 text-xs text-center text-gray-400">لم يتم إضافة صور لهذا اللون.</p>' : ''}
+                                 </div>
+                             </div>
+                             <!-- قسم المقاسات للون -->
+                             <div>
+                                 <h5 class="text-sm font-medium text-gray-700 mb-2">المقاسات المتاحة لهذا اللون</h5>
+                                 <div class="flex flex-wrap gap-2">
+                                     ${SIZES.map(size => `
+                                         <button type="button" class="size-tag ${data.sizes.includes(size) ? 'selected' : ''}" data-size="${size}" data-color-hex-size="${color.hex}">
+                                             ${size}
+                                         </button>
+                                     `).join('')}
+                                 </div>
+                                  ${SIZES.length === 0 ? '<p class="text-xs text-gray-400 mt-2">لا توجد مقاسات محددة.</p>' : ''}
+                             </div>
+                         </div>
+                     </div>
+                 `;
+             }).join('');
+
+             lucide.createIcons();
+
+             // إعادة ربط المستمعين
+             container.querySelectorAll('[data-remove-color]').forEach(btn => {
+                 btn.addEventListener('click', (e) => {
+                     e.preventDefault();
+                     const hex = e.currentTarget.dataset.removeColor;
+                     const color = currentSelectedColors.find(c => c.hex === hex);
+                     if (color) toggleColor(color); // toggleColor now handles confirmation
+                 });
+             });
+
+             container.querySelectorAll('[data-color-hex-upload]').forEach(input => {
+                 input.addEventListener('change', (e) => handleImageUpload(e, e.currentTarget.dataset.colorHexUpload));
+             });
+
+             container.querySelectorAll('[data-remove-image]').forEach(btn => {
+                 btn.addEventListener('click', (e) => {
+                     e.preventDefault();
+                     const hex = e.currentTarget.dataset.removeImage;
+                     const imgId = e.currentTarget.dataset.imageId;
+                      if(currentColorSpecificData[hex]) {
+                          currentColorSpecificData[hex].images = currentColorSpecificData[hex].images.filter(img => img.id != imgId);
+                           // إعادة عرض مدير هذا اللون فقط
+                          renderSingleColorVariantManager(hex);
+                      }
+                 });
+             });
+
+             container.querySelectorAll('[data-color-hex-size]').forEach(btn => {
+                 btn.addEventListener('click', (e) => {
+                     e.preventDefault();
+                     const hex = e.currentTarget.dataset.colorHexSize;
+                     const size = e.currentTarget.dataset.size;
+                      if(currentColorSpecificData[hex]) {
+                          const sizes = currentColorSpecificData[hex].sizes || [];
+                          const sizeIndex = sizes.indexOf(size);
+                          if (sizeIndex > -1) {
+                              sizes.splice(sizeIndex, 1); // Remove size
+                          } else {
+                              sizes.push(size); // Add size
+                              sizes.sort((a, b) => SIZES.indexOf(a) - SIZES.indexOf(b)); // Keep order consistent
+                          }
+                          currentColorSpecificData[hex].sizes = sizes;
+                          e.currentTarget.classList.toggle('selected');
+                          updateVariantsTable(tempVariantData); // تحديث جدول الأسعار مع الحفاظ على القيم
+                      }
+                 });
+             });
+              // استعادة قيم الأسعار والمخزون بعد إعادة العرض
+             updateVariantsTable(tempVariantData);
+         };
+
+         // دالة لإعادة عرض مدير متغيرات لون واحد (لتجنب إعادة عرض كل شيء عند حذف صورة)
+         const renderSingleColorVariantManager = (hex) => {
+              const managerDiv = document.querySelector(`[style*="border-right: 4px solid ${hex}"]`)?.closest('.border.border-gray-200');
+              if (!managerDiv) return;
+
+               const color = currentSelectedColors.find(c => c.hex === hex);
+               if (!color) return; // Should not happen if div exists
+
+               const data = currentColorSpecificData[color.hex] || { images: [], sizes: [] };
+
+              // إعادة بناء محتوى الصور والمقاسات فقط لهذا اللون
+              const imagePreviewContainer = managerDiv.querySelector(`[data-image-preview-for="${hex}"]`);
+              const sizeContainer = managerDiv.querySelector(`[data-color-hex-size="${hex}"]`)?.parentElement; // Get the flex container
+
+              if (imagePreviewContainer) {
+                  imagePreviewContainer.innerHTML = data.images.map((img, index) => `
+                      <div class="relative group image-preview-item">
+                           <img src="${img.url}" class="w-full h-24 object-cover rounded-md border border-gray-200">
+                           <button type="button" class="remove-image-btn" data-remove-image="${color.hex}" data-image-id="${img.id}">
+                               <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
+                           </button>
+                       </div>
+                  `).join('') + (data.images.length === 0 ? '<p class="col-span-3 text-xs text-center text-gray-400">لم يتم إضافة صور لهذا اللون.</p>' : '');
+
+                   // Re-attach listeners for remove buttons within this specific preview
+                   imagePreviewContainer.querySelectorAll('[data-remove-image]').forEach(btn => {
+                       btn.addEventListener('click', (e) => {
+                           e.preventDefault();
+                           const currentHex = e.currentTarget.dataset.removeImage;
+                           const imgId = e.currentTarget.dataset.imageId;
+                           if(currentColorSpecificData[currentHex]) {
+                               currentColorSpecificData[currentHex].images = currentColorSpecificData[currentHex].images.filter(img => img.id != imgId);
+                               renderSingleColorVariantManager(currentHex); // Re-render this section again
+                           }
+                       });
+                   });
+              }
+
+              if (sizeContainer) {
+                   sizeContainer.innerHTML = SIZES.map(size => `
+                       <button type="button" class="size-tag ${data.sizes.includes(size) ? 'selected' : ''}" data-size="${size}" data-color-hex-size="${color.hex}">
+                           ${size}
+                       </button>
+                   `).join('');
+                    // Re-attach listeners for size buttons within this specific container
+                    sizeContainer.querySelectorAll('[data-color-hex-size]').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                             e.preventDefault();
+                             const currentHex = e.currentTarget.dataset.colorHexSize;
+                             const currentSize = e.currentTarget.dataset.size;
+                              if(currentColorSpecificData[currentHex]) {
+                                  const sizes = currentColorSpecificData[currentHex].sizes || [];
+                                  const sizeIndex = sizes.indexOf(currentSize);
+                                  if (sizeIndex > -1) sizes.splice(sizeIndex, 1);
+                                  else {
+                                       sizes.push(currentSize);
+                                       sizes.sort((a, b) => SIZES.indexOf(a) - SIZES.indexOf(b));
+                                  }
+                                  currentColorSpecificData[currentHex].sizes = sizes;
+                                  e.currentTarget.classList.toggle('selected');
+
+                                  // Preserve existing table data before updating
+                                  const tempVariantData = {};
+                                   document.querySelectorAll('#variants-table-body tr[data-variant-key]').forEach(row => {
+                                       const key = row.dataset.variantKey;
+                                       tempVariantData[key] = {
+                                           price: row.querySelector('[data-variant-input="price"]').value,
+                                           stock: row.querySelector('[data-variant-input="stock"]').value
+                                       };
+                                   });
+                                  updateVariantsTable(tempVariantData);
+                              }
+                        });
+                    });
+              }
+               lucide.createIcons();
+         };
+
+
+        // 6. معالجة رفع الصور (للعام أو للون) وتحويلها لـ Base64
+        const handleImageUpload = (event, type) => {
+            const files = event.target.files;
+            if (!files) return;
+
+            const MAX_SIZE = 5 * 1024 * 1024; // 5MB حد أقصى لحجم الصورة لتجنب مشاكل localStorage
+
+            for (const file of files) {
+                if (file.size > MAX_SIZE) {
+                     showToast(`حجم الصورة ${file.name} يتجاوز الحد المسموح (5MB).`, 'error');
+                     continue; // Skip this file
+                 }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const url = e.target.result; // Base64 Data URL
+                    const id = Date.now() + '-' + Math.random().toString(36).substring(2, 9); // ID فريد
+                    const image = { id, url };
+
+                    if (type === 'general') {
+                        currentGeneralImages.push(image);
+                        renderImagePreview('general-image-preview', currentGeneralImages, 'general');
+                    } else { // type هو hex
+                        if(currentColorSpecificData[type]) {
+                            currentColorSpecificData[type].images.push(image);
+                             renderSingleColorVariantManager(type); // تحديث مدير اللون المحدد فقط
+                        }
+                    }
+                };
+                 reader.onerror = (error) => {
+                      console.error("FileReader error: ", error);
+                      showToast(`حدث خطأ أثناء قراءة الملف ${file.name}.`, 'error');
+                 };
+                reader.readAsDataURL(file);
+            }
+
+            // إعادة تعيين حقل الإدخال
+            event.target.value = null;
+        };
+
+
+        // 7. عرض الصور المصغرة (معادة الاستخدام)
+         const renderImagePreview = (containerSelector, images, type) => {
+             const container = document.querySelector(containerSelector);
+             if (!container) return;
+
+             container.innerHTML = images.map(img => `
+                 <div class="relative group image-preview-item">
+                     <img src="${img.url}" class="w-full h-24 object-cover rounded-md border border-gray-200">
+                     <button type="button" class="remove-image-btn" data-remove-image-id="${img.id}" data-type="${type}" title="إزالة الصورة">
+                         <i data-lucide="x" class="w-4 h-4 pointer-events-none"></i>
+                     </button>
+                 </div>
+             `).join('');
+             // رسالة إذا كانت القائمة فارغة
+              if (images.length === 0 && type === 'general') {
+                   container.innerHTML = '<p class="col-span-full text-xs text-center text-gray-400 py-4">لم يتم إضافة صور عامة.</p>';
+              } else if (images.length === 0) {
+                   // الرسالة الخاصة بمدير اللون موجودة في renderSingleColorVariantManager
+              }
+
+
+             lucide.createIcons();
+
+             // إعادة ربط مستمعين الحذف لهذه الحاوية فقط
+             container.querySelectorAll('[data-remove-image-id]').forEach(btn => {
+                 btn.addEventListener('click', (e) => {
+                     e.preventDefault();
+                     const id = e.currentTarget.dataset.removeImageId;
+                     const imgType = e.currentTarget.dataset.type;
+
+                     if (imgType === 'general') {
+                         currentGeneralImages = currentGeneralImages.filter(img => img.id != id);
+                         renderImagePreview('general-image-preview', currentGeneralImages, 'general'); // إعادة عرض الصور العامة فقط
+                     } else { // imgType هو hex
+                          if(currentColorSpecificData[imgType]) {
+                              currentColorSpecificData[imgType].images = currentColorSpecificData[imgType].images.filter(img => img.id != id);
+                               renderSingleColorVariantManager(imgType); // إعادة عرض مدير اللون المحدد فقط
+                          }
+                     }
+                 });
+             });
+         };
+
+        // 8. تحديث واجهة التسعير (جدول أو بسيط)
+        const updatePricingUI = () => {
+            const hasVariants = currentSelectedColors.length > 0;
+            const tableContainer = document.getElementById('variants-table-container');
+            const simpleContainer = document.getElementById('simple-pricing-container');
+
+             if (!tableContainer || !simpleContainer) return;
+
+             tableContainer.classList.toggle('hidden', !hasVariants);
+             simpleContainer.classList.toggle('hidden', hasVariants);
+
+            if (hasVariants) {
+                 // Preserve existing table data before updating structure
+                 const tempVariantData = {};
+                 document.querySelectorAll('#variants-table-body tr[data-variant-key]').forEach(row => {
+                     const key = row.dataset.variantKey;
+                     tempVariantData[key] = {
+                         price: row.querySelector('[data-variant-input="price"]').value,
+                         stock: row.querySelector('[data-variant-input="stock"]').value
+                     };
+                 });
+                 updateVariantsTable(tempVariantData);
+            } else {
+                 // If editing a simple product, fill simple fields
+                 if (currentProductId) {
+                     const product = state.products.find(p => p.id == currentProductId);
+                     if (product && product.variants.length === 1 && product.variants[0].is_default) {
+                          document.getElementById('simple-price').value = product.variants[0].price;
+                          document.getElementById('simple-stock').value = product.variants[0].stock_quantity;
+                     }
+                 }
+            }
+        };
+
+        // 9. تحديث جدول الأسعار والمخزون (مع الحفاظ على القيم إن أمكن)
+         const updateVariantsTable = (previousData = {}) => {
+             const tableBody = document.getElementById('variants-table-body');
+             if (!tableBody) return;
+
+             const generatedVariants = [];
+             let showSizeColumn = false;
+
+             currentSelectedColors.forEach(color => {
+                 const sizes = currentColorSpecificData[color.hex]?.sizes || [];
+                 if (sizes.length > 0) {
+                     showSizeColumn = true;
+                     sizes.forEach(size => {
+                         generatedVariants.push({
+                             key: `${color.hex}|${size}`,
+                             colorName: color.name,
+                             sizeName: size,
+                             options: { Couleur: color.name, Taille: size }
+                         });
+                     });
+                 } else {
+                     // لون بدون مقاسات
+                     generatedVariants.push({
+                         key: `${color.hex}|`,
+                         colorName: color.name,
+                         sizeName: null,
+                         options: { Couleur: color.name }
+                     });
+                 }
+             });
+
+              // تحديث رؤوس الجدول لإظهار/إخفاء عمود المقاس
+             const thead = tableBody.closest('table').querySelector('thead tr');
+             if(thead) {
+                  // إزالة عمود المقاس القديم إذا كان موجودًا
+                 const oldSizeTh = thead.querySelector('.size-column');
+                 if(oldSizeTh) oldSizeTh.remove();
+
+                 if(showSizeColumn) {
+                      const sizeTh = document.createElement('th');
+                      sizeTh.className = 'p-2 text-right border border-gray-200 size-column';
+                      sizeTh.textContent = 'المقاس';
+                      // إدراج عمود المقاس بعد اللون
+                      thead.children[0].insertAdjacentElement('afterend', sizeTh);
+                 }
+             }
+
+
+             if (generatedVariants.length === 0) {
+                  const colspan = showSizeColumn ? 4 : 3;
+                 tableBody.innerHTML = `<tr><td colspan="${colspan}" class="p-3 text-center text-gray-500 text-xs">اختر لونًا على الأقل.</td></tr>`;
+                 return;
+             }
+
+             tableBody.innerHTML = generatedVariants.map(variant => {
+                 const prev = previousData[variant.key] || { price: '', stock: ''};
+                 const rowContent = `
+                      <td class="p-2 align-top border border-gray-200">${variant.colorName}</td>
+                      ${showSizeColumn ? `<td class="p-2 align-top border border-gray-200">${variant.sizeName || '-'}</td>` : ''}
+                      <td class="p-2 align-top border border-gray-200">
+                          <input type="number" data-variant-input="price" value="${prev.price}" class="w-full px-2 py-1 border border-gray-300 rounded-md text-xs focus:border-blue-500 focus:ring-blue-500" placeholder="0.00" required>
+                      </td>
+                      <td class="p-2 align-top border border-gray-200">
+                          <input type="number" data-variant-input="stock" value="${prev.stock}" class="w-full px-2 py-1 border border-gray-300 rounded-md text-xs focus:border-blue-500 focus:ring-blue-500" placeholder="0" required min="0">
+                      </td>
+                 `;
+                  return `<tr data-variant-key="${variant.key}">${rowContent}</tr>`;
+             }).join('');
+         };
+
+
+        // 10. حفظ المنتج (Submit - إضافة وتعديل)
+         const handleProductFormSubmit = (e) => {
+             e.preventDefault();
+
+             const titleInput = document.getElementById('product-title');
+             const descriptionInput = document.getElementById('product-description');
+
+             if (!titleInput.value.trim()) {
+                 showToast('عنوان المنتج مطلوب!', 'error');
+                 titleInput.focus();
+                 return;
+             }
+
+             const hasVariants = currentSelectedColors.length > 0;
+             const productData = {
+                 id: currentProductId || Date.now() + Math.random().toString(16).slice(2), // Use existing ID or generate new
+                 title: titleInput.value.trim(),
+                 description: descriptionInput.value.trim(),
+                 generalImages: currentGeneralImages, // Array of { id, url }
+                 variantImages: {}, // Object: { "#hex": [ { id, url } ] }
+                 variantSpecificData: JSON.parse(JSON.stringify(currentColorSpecificData)), // Store sizes linked to colors
+                 product_options: [],
+                 variants: []
+             };
+
+             if (hasVariants) {
+                 // --- بناء الخيارات ---
+                 productData.product_options.push({
+                     name: 'Couleur',
+                     values: currentSelectedColors.map(c => ({ value: c.name, hex_code: c.hex }))
+                 });
+                 const allSizes = [...new Set(Object.values(currentColorSpecificData).flatMap(d => d.sizes || []))];
+                  // إضافة خيار المقاس فقط إذا كان هناك مقاس واحد على الأقل محدد لأي لون
+                  if (allSizes.length > 0) {
+                     allSizes.sort((a, b) => SIZES.indexOf(a) - SIZES.indexOf(b)); // Sort sizes
+                     productData.product_options.push({
+                         name: 'Taille',
+                         values: allSizes.map(s => ({ value: s }))
+                     });
+                  }
+
+                 // --- بناء المتغيرات ---
+                 const variantRows = document.querySelectorAll('#variants-table-body tr[data-variant-key]');
+                 if (variantRows.length === 0 && currentSelectedColors.length > 0) { // Check if colors selected but table empty
+                      showToast('يرجى تحديد تفاصيل (سعر ومخزون) للمتغيرات المتاحة.', 'error'); return;
+                 }
+
+
+                 for (const row of variantRows) {
+                     const key = row.dataset.variantKey;
+                     const priceInput = row.querySelector('[data-variant-input="price"]');
+                     const stockInput = row.querySelector('[data-variant-input="stock"]');
+                     const price = parseFloat(priceInput.value);
+                     const stock = parseInt(stockInput.value);
+                     const variantLabel = row.querySelector('td:first-child')?.textContent || `متغير ${key}`; // Get label for error
+
+
+                     if (!priceInput.value || isNaN(price) || price < 0) {
+                          showToast(`الرجاء إدخال سعر صحيح للمتغير ${variantLabel}`, 'error'); priceInput.focus(); return;
+                     }
+                      if (!stockInput.value || isNaN(stock) || stock < 0) {
+                          showToast(`الرجاء إدخال مخزون صحيح للمتغير ${variantLabel}`, 'error'); stockInput.focus(); return;
+                     }
+
+
+                     const [hex, size] = key.split('|');
+                     const colorName = currentSelectedColors.find(c => c.hex === hex)?.name;
+                     const options = {};
+                     if (colorName) options.Couleur = colorName;
+                     if (size) options.Taille = size;
+
+                     productData.variants.push({
+                         id: 'v-' + productData.id + '-' + productData.variants.length, // Unique variant ID
+                         options: options,
+                         price: price,
+                         purchase_price: 0, // Placeholder
+                         stock_quantity: stock,
+                         is_default: false // Will be set later if only one variant
+                     });
+                 }
+                  // --- بناء صور المتغيرات ---
+                 for (const hex of Object.keys(currentColorSpecificData)) {
+                      // Check if this color is still selected before adding images
+                      if (currentSelectedColors.some(c => c.hex === hex)) {
+                         productData.variantImages[hex] = currentColorSpecificData[hex].images;
+                      }
+                 }
+
+                  // Set default if only one variant exists after filtering
+                  if (productData.variants.length === 1) {
+                     productData.variants[0].is_default = true;
+                 }
+
+
+             } else {
+                 // --- منتج بسيط ---
+                 const priceInput = document.getElementById('simple-price');
+                 const stockInput = document.getElementById('simple-stock');
+                 const price = parseFloat(priceInput.value);
+                 const stock = parseInt(stockInput.value);
+
+                  if (!priceInput.value || isNaN(price) || price < 0) {
+                      showToast('الرجاء إدخال سعر صحيح للمنتج.', 'error'); priceInput.focus(); return;
+                  }
+                   if (!stockInput.value || isNaN(stock) || stock < 0) {
+                      showToast('الرجاء إدخال مخزون صحيح للمنتج.', 'error'); stockInput.focus(); return;
+                  }
+
+                 productData.variants.push({
+                     id: 'v-' + productData.id + '-default',
+                     options: {},
+                     price: price,
+                     purchase_price: 0,
+                     stock_quantity: stock,
+                     is_default: true
+                 });
+                 // لا توجد خيارات أو صور متغيرات للمنتج البسيط
+                  productData.product_options = [];
+                  productData.variantImages = {};
+                  productData.variantSpecificData = {};
+             }
+
+             // --- حفظ المنتج (إضافة أو تحديث) ---
+              if (currentProductId) {
+                  // تحديث المنتج الموجود
+                  const index = state.products.findIndex(p => p.id == currentProductId);
+                  if (index > -1) {
+                      state.products[index] = productData;
+                      showToast('تم تحديث المنتج بنجاح!', 'success');
+                  } else {
+                       showToast('خطأ: لم يتم العثور على المنتج لتحديثه.', 'error'); return; // Should not happen
+                  }
+              } else {
+                 // إضافة منتج جديد
+                 state.products.push(productData);
+                  showToast('تم إضافة المنتج بنجاح!', 'success');
+              }
+
+             db.set('products', state.products);
+             goTo('#/admin/products');
+         };
+
+
+        // ==========================================
+        // منطق العميل (Customer Logic)
+        // ==========================================
+
+        // 1. عرض صفحة المتجر الرئيسية
+        const renderShopPage = () => {
+             const listEl = document.getElementById('product-list');
+             if (!listEl) return;
+             listEl.innerHTML = '<div class="col-span-full flex justify-center items-center h-64"><div class="loader"></div></div>'; // Show loader
+
+             // Simulate fetching products (already in state)
+              setTimeout(() => { // Simulate delay
+                  if (state.products.length === 0) {
+                      listEl.innerHTML = `<p class="col-span-full text-center text-gray-500 py-10">لا توجد منتجات لعرضها حالياً. ${isAdmin() ? '<a href="#/admin/products/new" class="text-blue-600 font-medium hover:underline">أضف منتجاً</a>' : ''}</p>`;
+                      return;
+                  }
+
+                  listEl.innerHTML = state.products.map(product => {
+                      const defaultVariant = product.variants.find(v => v.is_default) || product.variants[0];
+                      const firstImage = product.generalImages[0] || Object.values(product.variantImages)[0]?.[0];
+                      const hasOptions = product.product_options.length > 0;
+
+                      return `
+                          <div class="group bg-white rounded-lg shadow border border-gray-200 overflow-hidden flex flex-col transition-shadow hover:shadow-md">
+                               <a href="#/product/${product.id}" class="block overflow-hidden">
+                                  <div class="w-full h-64 bg-gray-100 flex items-center justify-center">
+                                      <img src="${firstImage ? firstImage.url : 'https://placehold.co/400x500/f1f5f9/a3a3a3?text=No+Image'}" alt="${product.title}" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105">
+                                  </div>
+                              </a>
+                              <div class="p-4 flex flex-col flex-grow">
+                                  <h3 class="text-base font-semibold text-gray-800 truncate mb-1 flex-grow">
+                                      <a href="#/product/${product.id}" class="hover:text-blue-600 transition-colors">${product.title}</a>
+                                  </h3>
+                                  <p class="text-xl font-bold text-gray-900 mt-1 mb-3">${defaultVariant?.price?.toLocaleString('fr-DZ')} د.ج</p>
+                                  <a href="#/product/${product.id}" class="block w-full mt-auto bg-gray-800 text-white text-center py-2 px-4 rounded-md font-medium text-sm hover:bg-gray-700 transition-colors">
+                                      ${hasOptions ? 'اختيار الخيارات' : 'عرض التفاصيل'}
+                                  </a>
+                                   <!--<button data-product-id="${product.id}" class="add-to-cart-quick w-full mt-3 bg-gray-900 text-white py-2 px-4 rounded-md font-medium text-sm hover:bg-gray-800 transition-colors">
+                                       ${hasOptions ? 'اختيار الخيارات' : 'إضافة للسلة'}
+                                   </button>-->
+                              </div>
+                          </div>
+                      `;
+                  }).join('');
+
+                  // Re-attach listeners if needed (not needed for 'add-to-cart-quick' as it redirects now)
+                  /*
+                  listEl.querySelectorAll('.add-to-cart-quick').forEach(btn => {
+                      btn.addEventListener('click', (e) => {
+                          e.preventDefault();
+                          const productId = e.target.dataset.productId;
+                          const product = state.products.find(p => p.id == productId);
+                          const hasOptions = product.product_options.length > 0;
+
+                          if (hasOptions) {
+                              goTo(`#/product/${productId}`);
+                          } else {
+                              const variant = product.variants[0];
+                              addItemToCart(product, variant, 1);
+                          }
+                      });
+                  });
+                  */
+             }, 100); // Small delay
+        };
+
+        // 2. عرض صفحة تفاصيل المنتج
+        const renderProductDetailPage = (productId) => {
+            const pageEl = document.getElementById('page-product-detail');
+            const product = state.products.find(p => p.id == productId);
+
+            if (!product) {
+                pageEl.innerHTML = `<div class="bg-white p-6 rounded-lg shadow text-center"><h1 class="text-2xl font-bold text-red-600 mb-4">لم يتم العثور على المنتج.</h1><a href="#/" class="text-blue-600 hover:underline">&larr; العودة للمتجر</a></div>`;
+                return;
+            }
+
+            const colorOption = product.product_options.find(opt => opt.name === 'Couleur');
+            const sizeOption = product.product_options.find(opt => opt.name === 'Taille');
+            const hasOptions = colorOption || sizeOption;
+
+             // Find initial image: first color image if available, else first general, else placeholder
+             const initialColorHex = colorOption?.values[0]?.hex_code;
+             const initialImages = (initialColorHex && product.variantImages[initialColorHex]?.length > 0)
+                                    ? product.variantImages[initialColorHex]
+                                    : product.generalImages;
+             const initialImage = initialImages[0]?.url || 'https://placehold.co/600x600/f1f5f9/a3a3a3?text=No+Image';
+
+            const defaultVariant = product.variants.find(v => v.is_default) || product.variants[0] || { price: 0, stock_quantity: 0 };
+
+            pageEl.innerHTML = `
+                <div class="bg-white p-6 md:p-8 rounded-lg shadow-md border border-gray-200">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+                        <!-- قسم الصور -->
+                        <div>
+                             <div class="aspect-w-1 aspect-h-1 bg-gray-100 rounded-lg overflow-hidden mb-4 border border-gray-200">
+                                 <img id="main-product-image" src="${initialImage}" alt="${product.title}" class="w-full h-full object-cover duration-300 ease-in-out">
+                             </div>
+                              <!-- صور مصغرة -->
+                             <div id="thumbnail-images" class="grid grid-cols-4 gap-2">
+                                 ${initialImages.map((img, index) => `
+                                     <button class="aspect-w-1 aspect-h-1 block rounded-md overflow-hidden border-2 ${index === 0 ? 'border-blue-500' : 'border-transparent'} hover:border-blue-400 focus:outline-none focus:border-blue-500 transition" data-img-url="${img.url}">
+                                         <img src="${img.url}" alt="Thumbnail ${index+1}" class="w-full h-full object-cover">
+                                     </button>
+                                 `).join('')}
+                                 ${initialImages.length === 0 && product.generalImages.length > 0 ? product.generalImages.map((img, index) => `
+                                     <button class="aspect-w-1 aspect-h-1 block rounded-md overflow-hidden border-2 ${index === 0 ? 'border-blue-500' : 'border-transparent'} hover:border-blue-400 focus:outline-none focus:border-blue-500 transition" data-img-url="${img.url}">
+                                         <img src="${img.url}" alt="Thumbnail ${index+1}" class="w-full h-full object-cover">
+                                     </button>
+                                  `).join('') : ''}
+                             </div>
+                        </div>
+
+                        <!-- قسم التفاصيل -->
+                        <div class="py-4">
+                            <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 mb-3">${product.title}</h1>
+                            <p id="product-price" class="text-3xl font-bold text-gray-800 mb-6">${defaultVariant.price?.toLocaleString('fr-DZ')} د.ج</p>
+
+                            <form id="add-to-cart-form" class="space-y-6">
+                                <!-- خيارات الألوان -->
+                                ${colorOption ? `
+                                    <div>
+                                        <h3 class="text-sm font-medium text-gray-900 mb-2">اللون: <span id="selected-color-name" class="font-normal text-gray-600">اختر لونًا</span></h3>
+                                        <div id="product-color-options" class="flex flex-wrap gap-3">
+                                            ${colorOption.values.map(val => `
+                                                <button type="button" class="color-swatch" style="background-color: ${val.hex_code};" data-color-name="${val.value}" data-color-hex="${val.hex_code}" title="${val.value}"></button>
+                                            `).join('')}
+                                        </div>
+                                        <input type="hidden" id="selected-color-hex" name="color_hex">
+                                    </div>
+                                ` : ''}
+
+                                <!-- خيارات المقاسات -->
+                                ${sizeOption ? `
+                                    <div>
+                                         <div class="flex justify-between items-center mb-2">
+                                             <h3 class="text-sm font-medium text-gray-900">المقاس: <span id="selected-size-name" class="font-normal text-gray-600">اختر مقاسًا</span></h3>
+                                             <!-- (يمكن إضافة رابط دليل المقاسات هنا) -->
+                                         </div>
+                                        <div id="product-size-options" class="flex flex-wrap gap-2">
+                                            ${sizeOption.values.map(val => `
+                                                <button type="button" class="size-tag" data-size-name="${val.value}" disabled>
+                                                    ${val.value}
+                                                </button>
+                                            `).join('')}
+                                        </div>
+                                        <input type="hidden" id="selected-size" name="size">
+                                    </div>
+                                ` : ''}
+
+                                <!-- زر الإضافة للسلة -->
+                                <div class="pt-4">
+                                    <p id="stock-message" class="text-sm text-red-600 mb-2 hidden">الرجاء اختيار الخيارات المتاحة.</p>
+                                    <button type="submit" id="add-to-cart-btn" class="w-full bg-gray-900 text-white py-3 px-6 rounded-md font-medium text-lg hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 space-x-reverse" ${!hasOptions && defaultVariant?.stock_quantity > 0 ? '' : 'disabled'}>
+                                         <i data-lucide="shopping-cart" class="w-5 h-5"></i>
+                                         <span>${hasOptions ? 'اختر الخيارات أولاً' : (defaultVariant?.stock_quantity > 0 ? 'إضافة للسلة' : 'نفذ المخزون')}</span>
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- الوصف -->
+                            <div class="mt-8 pt-6 border-t border-gray-200">
+                                <h3 class="text-lg font-medium text-gray-900 mb-3">الوصف</h3>
+                                <div class="text-gray-600 leading-relaxed whitespace-pre-wrap prose prose-sm max-w-none">${product.description || 'لا يوجد وصف لهذا المنتج.'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            setupVariantSelector(product); // تشغيل منطق اختيار الخيارات
+            lucide.createIcons();
+        };
+
+        // 3. منطق اختيار الخيارات في صفحة المنتج (مع تحديث الصور)
+        const setupVariantSelector = (product) => {
+             const form = document.getElementById('add-to-cart-form');
+             if (!form) return;
+
+             const colorOption = product.product_options.find(opt => opt.name === 'Couleur');
+             const sizeOption = product.product_options.find(opt => opt.name === 'Taille');
+             const hasOptions = colorOption || sizeOption;
+
+             const colorButtons = form.querySelectorAll('#product-color-options .color-swatch');
+             const sizeButtons = form.querySelectorAll('#product-size-options .size-tag');
+             const priceEl = document.getElementById('product-price');
+             const stockMsg = document.getElementById('stock-message');
+             const addBtn = document.getElementById('add-to-cart-btn');
+             const addBtnText = addBtn.querySelector('span');
+             const mainImage = document.getElementById('main-product-image');
+             const thumbnailContainer = document.getElementById('thumbnail-images');
+             const selectedColorNameEl = document.getElementById('selected-color-name');
+             const selectedSizeNameEl = document.getElementById('selected-size-name');
+
+
+             let selectedColor = null; // { name, hex }
+             let selectedSize = null; // { name }
+             let selectedVariant = !hasOptions ? product.variants[0] : null;
+
+             const updateUI = () => {
+                 // 1. البحث عن المتغير المطابق
+                 selectedVariant = null;
+                 if (!hasOptions) {
+                      selectedVariant = product.variants[0];
+                 } else {
+                     selectedVariant = product.variants.find(v => {
+                          // Check color match OR if color option doesn't exist
+                         const colorMatch = !colorOption || (selectedColor && v.options.Couleur === selectedColor.name);
+                          // Check size match OR if size option doesn't exist
+                         const sizeMatch = !sizeOption || (selectedSize && v.options.Taille === selectedSize.name);
+                         return colorMatch && sizeMatch;
+                     });
+                 }
+
+
+                 // 2. تحديث السعر والمخزون وزر الإضافة
+                  const defaultPriceText = (product.variants[0]?.price || 0).toLocaleString('fr-DZ') + ' د.ج';
+                  if (priceEl) priceEl.textContent = selectedVariant ? `${selectedVariant.price.toLocaleString('fr-DZ')} د.ج` : defaultPriceText;
+
+                 let canAddToCart = false;
+                 let stockMessageText = '';
+                 let buttonText = 'إضافة للسلة';
+
+                  if (hasOptions && (!selectedColor && colorOption || !selectedSize && sizeOption)) {
+                      stockMessageText = 'الرجاء اختيار جميع الخيارات المتاحة.';
+                      buttonText = 'اختر الخيارات';
+                  } else if (selectedVariant) {
+                     if (selectedVariant.stock_quantity > 0) {
+                         stockMessageText = ''; // Clear message if in stock
+                         canAddToCart = true;
+                     } else {
+                         stockMessageText = 'نفذ المخزون لهذا الخيار.';
+                         buttonText = 'نفذ المخزون';
+                     }
+                  } else if (hasOptions) { // Options selected, but no matching variant found (shouldn't happen with proper availability logic)
+                     stockMessageText = 'هذا المزيج من الخيارات غير متوفر.';
+                     buttonText = 'غير متوفر';
+                 } else if (!selectedVariant && !hasOptions) { // Simple product out of stock
+                      stockMessageText = 'نفذ المخزون لهذا المنتج.';
+                      buttonText = 'نفذ المخزون';
+                 }
+
+
+                 if (stockMsg) {
+                      stockMsg.textContent = stockMessageText;
+                      stockMsg.classList.toggle('hidden', !stockMessageText);
+                 }
+                  if (addBtn) addBtn.disabled = !canAddToCart;
+                  if (addBtnText) addBtnText.textContent = buttonText;
+
+
+                  // 3. تحديث الصور المصغرة والصورة الرئيسية بناءً على اللون المحدد
+                  let imagesToShow = product.generalImages; // Default to general images
+                  if (selectedColor && product.variantImages[selectedColor.hex]?.length > 0) {
+                      imagesToShow = product.variantImages[selectedColor.hex];
+                  }
+
+                   if (thumbnailContainer) {
+                       thumbnailContainer.innerHTML = imagesToShow.map((img, index) => `
+                           <button class="aspect-w-1 aspect-h-1 block rounded-md overflow-hidden border-2 border-transparent hover:border-blue-400 focus:outline-none focus:border-blue-500 transition" data-img-url="${img.url}">
+                               <img src="${img.url}" alt="Thumbnail ${index+1}" class="w-full h-full object-cover pointer-events-none">
+                           </button>
+                       `).join('');
+
+                       // تحديد أول صورة مصغرة كالنشطة
+                        const firstThumb = thumbnailContainer.querySelector('button');
+                        if (firstThumb) firstThumb.classList.add('border-blue-500');
+
+                       // إضافة مستمعين للصور المصغرة لتغيير الصورة الرئيسية
+                       thumbnailContainer.querySelectorAll('button').forEach(thumb => {
+                            thumb.addEventListener('click', (e) => {
+                                 const newUrl = e.currentTarget.dataset.imgUrl;
+                                 if (mainImage) mainImage.src = newUrl;
+                                 // تحديث الحدود النشطة
+                                 thumbnailContainer.querySelectorAll('button').forEach(t => t.classList.remove('border-blue-500'));
+                                 e.currentTarget.classList.add('border-blue-500');
+                            });
+                       });
+                   }
+
+                   // تحديث الصورة الرئيسية إلى أول صورة في المجموعة الجديدة
+                    if (mainImage && imagesToShow.length > 0) {
+                         mainImage.src = imagesToShow[0].url;
+                    } else if (mainImage) {
+                         mainImage.src = 'https://placehold.co/600x600/f1f5f9/a3a3a3?text=No+Image'; // Placeholder if no images
+                    }
+
+
+             };
+
+             // عند اختيار لون
+             colorButtons.forEach(btn => {
+                 btn.addEventListener('click', (e) => {
+                     e.preventDefault();
+                     colorButtons.forEach(b => b.classList.remove('selected'));
+                     btn.classList.add('selected');
+                     selectedColor = { name: btn.dataset.colorName, hex: btn.dataset.colorHex };
+                     if (selectedColorNameEl) selectedColorNameEl.textContent = selectedColor.name;
+
+                      // تحديث توافر المقاسات
+                     if (sizeOption) {
+                         sizeButtons.forEach(sizeBtn => {
+                             const sizeName = sizeBtn.dataset.sizeName;
+                              // هل يوجد متغير يطابق اللون والمقاس المحددين؟
+                             const isAvailable = product.variants.some(v =>
+                                  v.options.Couleur === selectedColor.name &&
+                                  v.options.Taille === sizeName &&
+                                  v.stock_quantity > 0 // تحقق من المخزون أيضاً هنا
+                             );
+                             sizeBtn.disabled = !isAvailable;
+                              // إذا كان المقاس المحدد حالياً غير متوفر مع اللون الجديد، قم بإلغاء تحديده
+                             if (selectedSize && selectedSize.name === sizeName && !isAvailable) {
+                                 selectedSize = null;
+                                  if (selectedSizeNameEl) selectedSizeNameEl.textContent = 'اختر مقاسًا';
+                                  sizeBtn.classList.remove('selected');
+                             }
+                              // إعادة تحديد المقاس إذا كان هو المحدد سابقاً ومازال متاحاً
+                               else if (selectedSize && selectedSize.name === sizeName && isAvailable) {
+                                    sizeBtn.classList.add('selected');
+                               } else {
+                                    sizeBtn.classList.remove('selected'); // إزالة التحديد من الآخرين
+                               }
+                         });
+                          // إذا لم يعد هناك مقاس محدد، قم بتحديث الواجهة
+                         if (!selectedSize && selectedSizeNameEl) selectedSizeNameEl.textContent = 'اختر مقاسًا';
+                     }
+                     updateUI();
+                 });
+             });
+
+             // عند اختيار مقاس
+             sizeButtons.forEach(btn => {
+                 btn.addEventListener('click', (e) => {
+                     e.preventDefault();
+                     if (btn.disabled) return;
+                     sizeButtons.forEach(b => b.classList.remove('selected'));
+                     btn.classList.add('selected');
+                     selectedSize = { name: btn.dataset.sizeName };
+                     if (selectedSizeNameEl) selectedSizeNameEl.textContent = selectedSize.name;
+                     updateUI();
+                 });
+             });
+
+             // عند الضغط على "إضافة للسلة"
+             form.addEventListener('submit', (e) => {
+                 e.preventDefault();
+                  // التحقق النهائي قبل الإضافة
+                  if (!hasOptions) { // منتج بسيط
+                      selectedVariant = product.variants[0];
+                  } else {
+                       if (colorOption && !selectedColor) { showToast('الرجاء اختيار اللون.', 'error'); return; }
+                       if (sizeOption && !selectedSize) { showToast('الرجاء اختيار المقاس.', 'error'); return; }
+                       // المتغير تم تحديده بالفعل في updateUI
+                  }
+
+
+                 if (selectedVariant && selectedVariant.stock_quantity > 0) {
+                     addItemToCart(product, selectedVariant, 1);
+                 } else if (selectedVariant && selectedVariant.stock_quantity <= 0) {
+                      showToast('نفذ المخزون لهذا الخيار.', 'error');
+                 } else {
+                      showToast('الرجاء اختيار خيارات صالحة.', 'error');
+                 }
+             });
+
+             // تشغيل التحديث الأولي (خاصة للمقاسات إذا لم يكن هناك ألوان)
+             if (!colorOption && sizeOption) {
+                  sizeButtons.forEach(sizeBtn => {
+                      const sizeName = sizeBtn.dataset.sizeName;
+                      const isAvailable = product.variants.some(v => v.options.Taille === sizeName && v.stock_quantity > 0);
+                      sizeBtn.disabled = !isAvailable;
+                  });
+             } else if (!colorOption && !sizeOption) {
+                  // منتج بسيط، تحقق من المخزون
+                  updateUI(); // سيعطل الزر إذا كان المخزون 0
+             } else {
+                  // إذا كان هناك ألوان، انتظر اختيار اللون لتفعيل المقاسات
+                  updateUI();
+             }
+         };
+
+        // 4. إضافة منتج للسلة (من صفحة المنتج أو المتجر)
+         const addItemToCart = (product, variant, quantity) => {
+
+             if (!variant) {
+                  showToast('خطأ: المتغير المحدد غير صالح.', 'error');
+                  return;
+             }
+
+             if (variant.stock_quantity < quantity) {
+                 showToast('الكمية المطلوبة غير متوفرة في المخزون!', 'error');
+                 return;
+             }
+
+             const existingItemIndex = state.cart.findIndex(item => item.variant_id === variant.id);
+
+             if (existingItemIndex > -1) {
+                 const existingItem = state.cart[existingItemIndex];
+                 const newQty = existingItem.quantity + quantity;
+                 if (variant.stock_quantity < newQty) {
+                     showToast(`لا يمكنك إضافة المزيد، المخزون المتبقي لهذا الخيار هو ${variant.stock_quantity - existingItem.quantity}.`, 'error');
+                     return;
+                 }
+                 state.cart[existingItemIndex].quantity = newQty;
+             } else {
+                 // --- العثور على الصورة المناسبة ---
+                  let imageUrl = 'https://placehold.co/100x120/f1f5f9/a3a3a3?text=No+Image'; // Placeholder
+                  // 1. ابحث عن صور اللون المحدد للمتغير
+                  const colorHex = product.product_options.find(opt => opt.name === 'Couleur')
+                                       ?.values.find(v => v.value === variant.options.Couleur)
+                                       ?.hex_code;
+                  if (colorHex && product.variantImages[colorHex]?.length > 0) {
+                      imageUrl = product.variantImages[colorHex][0].url;
+                  }
+                  // 2. إذا لم توجد صور للون، ابحث في الصور العامة
+                  else if (product.generalImages.length > 0) {
+                      imageUrl = product.generalImages[0].url;
+                  }
+                  // 3. إذا لم توجد أي صور، استخدم Placeholder
+
+                  const optionsText = Object.entries(variant.options)
+                                          .map(([key, value]) => value) // خذ القيمة فقط (مثل 'أحمر', 'M')
+                                          .join(' / '); // افصل بينها بـ ' / '
+
+
+                 state.cart.push({
+                     cartId: variant.id + '-' + Date.now(), // ID فريد لعنصر السلة
+                     variant_id: variant.id,
+                     product_id: product.id,
+                     title: product.title,
+                     price: variant.price,
+                     quantity: quantity,
+                     image_url: imageUrl,
+                     optionsText: optionsText, // نص الخيارات للعرض
+                     stock: variant.stock_quantity // تخزين المخزون للتحقق لاحقاً
+                 });
+             }
+
+             db.set('cart', state.cart);
+             updateCartBadge();
+             showToast('تمت إضافة المنتج للسلة بنجاح!', 'success');
+             // قد ترغب في فتح السلة أو تحديث واجهة السلة إذا كانت مفتوحة
+             if(window.location.hash === '#/cart') {
+                 renderCartPage();
+             }
+         };
+
+        // 5. تحديث أيقونة السلة
+        const updateCartBadge = () => {
+            const badge = document.getElementById('cart-count-badge');
+            if (!badge) return;
+            const totalItems = state.cart.reduce((acc, item) => acc + item.quantity, 0);
+            badge.textContent = totalItems;
+            badge.classList.toggle('hidden', totalItems === 0);
+        };
+
+        // 6. عرض صفحة السلة
+        const renderCartPage = () => {
+             const pageEl = document.getElementById('page-cart');
+             if (!pageEl) return;
+
+             // إعادة ربط المستمعين
+             pageEl.innerHTML = ''; // Clear previous listeners
+
+             if (state.cart.length === 0) {
+                 pageEl.innerHTML = `
+                     <div class="text-center bg-white p-10 rounded-lg shadow border border-gray-200">
+                         <i data-lucide="shopping-cart" class="w-20 h-20 text-gray-300 mx-auto mb-4"></i>
+                         <h2 class="text-2xl font-bold text-gray-800 mb-2">سلتك فارغة</h2>
+                         <p class="text-gray-500 mb-6">لم تقم بإضافة أي منتجات بعد.</p>
+                         <a href="#/" class="bg-gray-900 text-white py-2 px-6 rounded-md font-medium hover:bg-gray-800 transition-colors inline-block">
+                             العودة للمتجر
+                         </a>
+                     </div>
+                 `;
+                 lucide.createIcons();
+                 return;
+             }
+
+             const subTotal = state.cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
+             pageEl.innerHTML = `
+                 <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 mb-6">سلة التسوق (${state.cart.reduce((acc, item) => acc + item.quantity, 0)} منتج)</h1>
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                     <!-- قائمة المنتجات -->
+                     <div class="lg:col-span-2 bg-white p-4 sm:p-6 rounded-lg shadow border border-gray-200 space-y-5 divide-y divide-gray-200">
+                         ${state.cart.map(item => `
+                             <div class="flex items-start sm:items-center pt-5 first:pt-0 flex-col sm:flex-row" data-cart-item-id="${item.cartId}">
+                                 <img src="${item.image_url}" alt="${item.title}" class="w-24 h-28 sm:w-20 sm:h-24 object-cover rounded-md border flex-shrink-0 mb-3 sm:mb-0">
+                                 <div class="flex-1 mx-0 sm:mx-4 w-full">
+                                     <div class="flex justify-between items-start w-full">
+                                          <div>
+                                              <p class="font-semibold text-gray-900 text-base leading-tight">${item.title}</p>
+                                              <p class="text-sm text-gray-500 mt-1">${item.optionsText}</p>
+                                          </div>
+                                           <p class="font-semibold text-gray-900 text-base sm:hidden">${(item.price * item.quantity).toLocaleString('fr-DZ')} د.ج</p>
+                                     </div>
+                                     <!-- أزرار الكمية -->
+                                     <div class="flex items-center justify-between sm:justify-start space-x-2 space-x-reverse mt-2">
+                                         <div class="inline-flex items-center border border-gray-300 rounded-md">
+                                             <button data-action="decrease" class="p-1.5 text-gray-600 hover:bg-gray-100 rounded-r-md disabled:opacity-50 disabled:cursor-not-allowed" ${item.quantity <= 1 ? 'disabled' : ''}>
+                                                 <i data-lucide="minus" class="w-4 h-4 pointer-events-none"></i>
+                                             </button>
+                                             <span class="font-medium w-10 text-center text-sm">${item.quantity}</span>
+                                             <button data-action="increase" class="p-1.5 text-gray-600 hover:bg-gray-100 rounded-l-md disabled:opacity-50 disabled:cursor-not-allowed" ${item.quantity >= item.stock ? 'disabled' : ''}>
+                                                 <i data-lucide="plus" class="w-4 h-4 pointer-events-none"></i>
+                                             </button>
+                                         </div>
+                                         <button data-action="remove" class="text-xs text-red-600 hover:text-red-800 hover:underline sm:ml-4">
+                                             إزالة
+                                         </button>
+                                     </div>
+                                      ${item.quantity >= item.stock ? '<p class="text-xs text-red-500 mt-1">الكمية القصوى في المخزون</p>' : ''}
+                                 </div>
+                                 <div class="text-left flex-shrink-0 hidden sm:block" dir="ltr">
+                                     <p class="font-semibold text-gray-900 text-base">${(item.price * item.quantity).toLocaleString('fr-DZ')} د.ج</p>
+                                 </div>
+                             </div>
+                         `).join('')}
+                     </div>
+
+                     <!-- ملخص الطلب -->
+                     <aside class="lg:col-span-1">
+                         <div class="bg-white p-6 rounded-lg shadow border border-gray-200 sticky top-24">
+                             <h3 class="text-xl font-semibold mb-4 pb-4 border-b text-gray-800">ملخص الطلب</h3>
+                             <div class="space-y-3 text-sm mb-6" dir="ltr">
+                                 <div class="flex justify-between">
+                                     <span class="text-gray-600">Subtotal</span>
+                                     <span class="font-medium text-gray-800">${subTotal.toLocaleString('fr-DZ')} DZD</span>
+                                 </div>
+                                 <div class="flex justify-between">
+                                     <span class="text-gray-600">Shipping</span>
+                                     <span class="font-medium text-gray-800">يُحسب عند الدفع</span>
+                                 </div>
+                                 <div class="flex justify-between text-lg font-bold text-gray-900 mt-4 pt-4 border-t border-gray-300">
+                                     <span>Total (Est.)</span>
+                                     <span>${subTotal.toLocaleString('fr-DZ')} DZD</span>
+                                 </div>
+                             </div>
+                             <a href="#/checkout" class="block w-full text-center bg-gray-900 text-white py-3 px-6 rounded-md font-medium text-lg hover:bg-gray-800 transition-colors">
+                                 المتابعة للدفع
+                             </a>
+                              <a href="#/" class="block text-center mt-4 text-sm text-blue-600 hover:underline">
+                                 أو متابعة التسوق
+                             </a>
+                         </div>
+                     </aside>
+                 </div>
+             `;
+
+             lucide.createIcons();
+
+             // إضافة مستمعين لصفحة السلة
+             pageEl.querySelectorAll('[data-cart-item-id]').forEach(itemEl => {
+                 const cartId = itemEl.dataset.cartItemId;
+                 itemEl.querySelector('[data-action="increase"]')?.addEventListener('click', () => updateCartQuantity(cartId, 1));
+                 itemEl.querySelector('[data-action="decrease"]')?.addEventListener('click', () => updateCartQuantity(cartId, -1));
+                 itemEl.querySelector('[data-action="remove"]')?.addEventListener('click', () => removeFromCart(cartId));
+             });
+         };
+
+        // 7. تحديث الكمية في السلة
+         const updateCartQuantity = (cartId, change) => {
+             const itemIndex = state.cart.findIndex(item => item.cartId === cartId);
+             if (itemIndex === -1) return;
+
+             const item = state.cart[itemIndex];
+             const newQty = item.quantity + change;
+
+             if (newQty < 1) {
+                 removeFromCart(cartId); // سيقوم بإعادة العرض
+                 return;
+             }
+
+             // Find the corresponding product variant to check stock again (in case it changed)
+             const product = state.products.find(p => p.id === item.product_id);
+             const variant = product?.variants.find(v => v.id === item.variant_id);
+             const currentStock = variant ? variant.stock_quantity : item.stock; // Use live stock if possible
+
+             if (newQty > currentStock) {
+                 showToast(`لا يمكن تجاوز الكمية المتوفرة في المخزون (${currentStock})!`, 'error');
+                 return;
+             }
+
+             state.cart[itemIndex].quantity = newQty;
+             db.set('cart', state.cart);
+             updateCartBadge();
+             renderCartPage(); // إعادة عرض الصفحة لتحديث الإجمالي والأزرار
+         };
+
+        // 8. إزالة منتج من السلة
+         const removeFromCart = (cartId) => {
+             const itemToRemove = state.cart.find(item => item.cartId === cartId);
+             if (!itemToRemove) return;
+
+             showModal(`
+                 <div class="p-4 text-center">
+                      <i data-lucide="trash-2" class="w-16 h-16 text-red-500 mx-auto mb-4"></i>
+                      <h3 class="text-lg font-semibold mb-2">تأكيد الإزالة</h3>
+                      <p class="text-gray-600 mb-6">هل أنت متأكد من إزالة "${itemToRemove.title}" من السلة؟</p>
+                      <div class="flex justify-center space-x-4 space-x-reverse">
+                          <button id="confirm-remove-item" class="bg-red-600 text-white py-2 px-5 rounded-md font-medium hover:bg-red-700 transition-colors">
+                              نعم، إزالة
+                          </button>
+                          <button class="modal-close-btn bg-gray-200 text-gray-800 py-2 px-5 rounded-md font-medium hover:bg-gray-300 transition-colors">
+                              إلغاء
+                          </button>
+                      </div>
+                  </div>
+             `);
+              document.getElementById('confirm-remove-item').onclick = () => {
+                  state.cart = state.cart.filter(item => item.cartId !== cartId);
+                  db.set('cart', state.cart);
+                  updateCartBadge();
+                  renderCartPage(); // Refresh cart page
+                  hideModal();
+                  showToast('تم إزالة المنتج من السلة.');
+              };
+         };
+
+        // 9. عرض صفحة الدفع (Checkout)
+         const renderCheckoutPage = async () => { // Async to fetch wilayas
+             const pageEl = document.getElementById('page-checkout');
+              if (!pageEl) return;
+              pageEl.innerHTML = '<div class="flex justify-center items-center h-64"><div class="loader"></div></div>'; // Loader
+
+             const subTotal = state.cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+
+             if (state.cart.length === 0) {
+                 goTo('#/cart'); // Redirect if cart becomes empty
+                 return;
+             }
+
+             let wilayas = [];
+             let wilayasError = null;
+             try {
+                  const wilayaData = await fetchYalidineData('wilayas');
+                  wilayas = wilayaData?.data || [];
+                  // Sort wilayas numerically by ID for standard Algerian order
+                  wilayas.sort((a, b) => a.id - b.id);
+             } catch (error) {
+                  console.error("Failed to load wilayas:", error);
+                  wilayasError = "خطأ في تحميل قائمة الولايات. يرجى المحاولة مرة أخرى.";
+                  // showToast(wilayasError, 'error'); // Show immediate toast
+             }
+
+             pageEl.innerHTML = `
+                 <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 mb-8 text-center">إتمام الطلب</h1>
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
+                     <!-- الفورم -->
+                     <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow border border-gray-200">
+                         <h3 class="text-xl font-semibold mb-5 text-gray-800">1. معلومات التوصيل</h3>
+                         <form id="checkout-form" class="space-y-4">
+                             <div>
+                                 <label for="checkout-name" class="block text-sm font-medium text-gray-700 mb-1">الاسم الكامل <span class="text-red-600">*</span></label>
+                                 <input type="text" id="checkout-name" name="name" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+                             </div>
+                             <div>
+                                 <label for="checkout-phone" class="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف <span class="text-red-600">*</span></label>
+                                 <input type="tel" id="checkout-phone" name="phone" inputmode="tel" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500" required pattern="^(05|06|07)\\d{8}$" title="يجب أن يبدأ الرقم بـ 05, 06, أو 07 و يتكون من 10 أرقام">
+                             </div>
+
+                             <h3 class="text-xl font-semibold mb-1 pt-4 text-gray-800">2. اختيار طريقة التوصيل</h3>
+                             ${wilayasError ? `<p class="text-red-600 bg-red-100 p-3 rounded-md">${wilayasError}</p>` : ''}
+                              <!-- اختيار نوع التوصيل -->
+                             <div class="radio-card-group grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+                                  <label id="delivery-office-label" class="disabled">
+                                     <input type="radio" name="delivery_type" value="office" disabled>
+                                     <div class="radio-card">
+                                          <div class="icon">
+                                               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15.5A3.5 3.5 0 0 1 7.5 12h9a3.5 3.5 0 0 1 0 7h-9A3.5 3.5 0 0 1 4 15.5Z"/><path d="M15 12l-3-3-3 3"/><path d="m7.5 19-1-1"/><path d="M10 19l-1.5-1.5"/><path d="m14 19-2-2"/><path d="M16.5 19-3-3"/></svg>
+                                          </div>
+                                          <span class="font-semibold text-gray-800">مكتب Yalidine</span>
+                                          <small class="text-xs text-gray-500 mt-1">استلم من أقرب مكتب</small>
+                                          <span id="desk-fee-display" class="text-sm font-bold text-blue-600 mt-2"></span>
+                                     </div>
+                                  </label>
+                                   <label id="delivery-home-label" class="disabled">
+                                      <input type="radio" name="delivery_type" value="home" disabled>
+                                      <div class="radio-card">
+                                          <div class="icon">
+                                               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                                          </div>
+                                          <span class="font-semibold text-gray-800">توصيل للمنزل</span>
+                                           <small class="text-xs text-gray-500 mt-1">توصيل مباشر لباب منزلك</small>
+                                           <span id="home-fee-display" class="text-sm font-bold text-blue-600 mt-2"></span>
+                                      </div>
+                                   </label>
+                             </div>
+
+                             <div>
+                                 <label for="checkout-wilaya" class="block text-sm font-medium text-gray-700 mb-1">الولاية <span class="text-red-600">*</span></label>
+                                 <select id="checkout-wilaya" name="wilaya_id" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white focus:border-blue-500 focus:ring-blue-500" required ${wilayas.length === 0 ? 'disabled' : ''}>
+                                     <option value="">-- اختر ولايتك --</option>
+                                     ${wilayas.map(w => `<option value="${w.id}" data-name="${w.name}">${w.id} - ${w.name}</option>`).join('')}
+                                 </select>
+                             </div>
+
+                              <div id="commune-or-center-container">
+                                 <label id="commune-or-center-label" for="checkout-commune-center" class="block text-sm font-medium text-gray-700 mb-1">البلدية / المكتب <span class="text-red-600">*</span></label>
+                                 <select id="checkout-commune-center" name="commune_or_center_name" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white focus:border-blue-500 focus:ring-blue-500" required disabled>
+                                     <option value="">-- اختر الولاية أولاً --</option>
+                                 </select>
+                                  <p id="commune-center-loading" class="text-xs text-blue-600 mt-1 hidden">جاري تحميل الخيارات...</p>
+                                  <p id="commune-center-error" class="text-xs text-red-600 mt-1 hidden"></p>
+                             </div>
+
+                             <div id="address-container" class="hidden">
+                                 <label for="checkout-address" class="block text-sm font-medium text-gray-700 mb-1">العنوان بالتفصيل (الحي، الشارع...) <span class="text-red-600">*</span></label>
+                                 <input type="text" id="checkout-address" name="address" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                             </div>
+                         </form>
+                     </div>
+
+                     <!-- ملخص الطلب -->
+                     <aside class="lg:col-span-1">
+                         <div class="bg-white p-6 rounded-lg shadow border border-gray-200 sticky top-24">
+                             <h3 class="text-xl font-semibold mb-4 pb-4 border-b text-gray-800">ملخص الطلب</h3>
+                             <!-- Cart Items Mini View -->
+                             <div class="space-y-3 max-h-48 overflow-y-auto mb-4 pr-2 border-b pb-4">
+                                  ${state.cart.map(item => `
+                                     <div class="flex items-center space-x-3 space-x-reverse">
+                                          <div class="relative flex-shrink-0">
+                                               <img src="${item.image_url}" alt="${item.title}" class="w-12 h-14 object-cover rounded-md border">
+                                               <span class="absolute -top-2 -right-2 bg-gray-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">${item.quantity}</span>
+                                          </div>
+                                          <div class="flex-1 min-w-0">
+                                               <p class="text-sm font-medium text-gray-800 truncate">${item.title}</p>
+                                               <p class="text-xs text-gray-500 truncate">${item.optionsText}</p>
+                                          </div>
+                                          <p class="text-sm font-medium flex-shrink-0" dir="ltr">${(item.price * item.quantity).toLocaleString('fr-DZ')} DZD</p>
+                                     </div>
+                                 `).join('')}
+                             </div>
+                             <!-- Totals -->
+                             <div class="space-y-3 text-sm pt-4" dir="ltr">
+                                 <div class="flex justify-between">
+                                     <span class="text-gray-600">Subtotal</span>
+                                     <span class="font-medium text-gray-800">${subTotal.toLocaleString('fr-DZ')} DZD</span>
+                                 </div>
+                                 <div class="flex justify-between">
+                                     <span class="text-gray-600">Shipping</span>
+                                     <span id="shipping-cost" class="font-medium text-gray-800">اختر الولاية</span>
+                                 </div>
+                                 <div class="flex justify-between text-lg font-bold text-gray-900 mt-4 pt-4 border-t border-gray-300">
+                                     <span>Total</span>
+                                     <span id="total-cost" class="font-medium">${subTotal.toLocaleString('fr-DZ')} DZD</span>
+                                 </div>
+                             </div>
+                             <button type="submit" form="checkout-form" id="submit-order-btn" class="w-full text-center mt-6 bg-blue-600 text-white py-3 px-6 rounded-md font-medium text-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center" disabled>
+                                  <span class="btn-text">تأكيد الطلب</span>
+                                   <div class="loader btn-loader hidden" style="width: 24px; height:24px; border-width: 3px;"></div>
+                             </button>
+                              <p class="text-xs text-center text-gray-500 mt-3">الدفع عند الاستلام متوفر.</p>
+                         </div>
+                     </aside>
+                 </div>
+             `;
+
+             // إضافة مستمعين لصفحة الدفع بعد عرضها
+             setupCheckoutListeners(subTotal);
+              // إظهار الخطأ إذا فشل تحميل الولايات
+             if (wilayasError) {
+                  showToast(wilayasError, 'error', 5000);
+             }
+         };
+
+         // 10. ربط المستمعين لصفحة الدفع
+         const setupCheckoutListeners = (subTotal) => {
+             const form = document.getElementById('checkout-form');
+             const wilayaSelect = document.getElementById('checkout-wilaya');
+             const communeCenterSelect = document.getElementById('checkout-commune-center');
+             const shippingCostEl = document.getElementById('shipping-cost');
+             const totalCostEl = document.getElementById('total-cost');
+             const addressContainer = document.getElementById('address-container');
+             const checkoutAddressInput = document.getElementById('checkout-address');
+             const deliveryTypeRadios = form.querySelectorAll('input[name="delivery_type"]');
+             const submitBtn = document.getElementById('submit-order-btn');
+              const submitBtnText = submitBtn.querySelector('.btn-text');
+              const submitBtnLoader = submitBtn.querySelector('.btn-loader');
+             const communeCenterLoadingEl = document.getElementById('commune-center-loading');
+             const communeCenterErrorEl = document.getElementById('commune-center-error');
+              const communeCenterLabel = document.getElementById('commune-or-center-label');
+              const officeLabel = document.getElementById('delivery-office-label');
+              const homeLabel = document.getElementById('delivery-home-label');
+              const officeRadio = officeLabel?.querySelector('input');
+              const homeRadio = homeLabel?.querySelector('input');
+              const deskFeeDisplay = document.getElementById('desk-fee-display');
+              const homeFeeDisplay = document.getElementById('home-fee-display');
+
+             let currentShippingCost = null; // null indicates not calculated yet
+             let deliveryFees = { home: null, desk: null }; // Store fees for the selected wilaya
+
+             const updateTotal = () => {
+                 const calculatedShipping = currentShippingCost ?? 0;
+                 shippingCostEl.textContent = currentShippingCost !== null ? `${calculatedShipping.toLocaleString('fr-DZ')} DZD` : 'اختر التوصيل';
+                 totalCostEl.textContent = `${(subTotal + calculatedShipping).toLocaleString('fr-DZ')} DZD`;
+                 // Enable submit button only if shipping is calculated (not null) and > 0, and form is potentially valid
+                 submitBtn.disabled = currentShippingCost === null || currentShippingCost < 0 ; // Allow 0 DZD shipping
+             };
+
+              const resetDeliveryOptions = () => {
+                   deliveryFees = { home: null, desk: null };
+                   currentShippingCost = null;
+                   communeCenterSelect.innerHTML = '<option value="">-- اختر الولاية أولاً --</option>';
+                   communeCenterSelect.disabled = true;
+                   addressContainer.classList.add('hidden');
+                   checkoutAddressInput.required = false;
+                    communeCenterLoadingEl.classList.add('hidden');
+                    communeCenterErrorEl.classList.add('hidden');
+                    // Reset and disable radio buttons and labels
+                     if(officeRadio) officeRadio.disabled = true;
+                     if(homeRadio) homeRadio.disabled = true;
+                     if(officeRadio) officeRadio.checked = false;
+                     if(homeRadio) homeRadio.checked = false;
+                     officeLabel.classList.add('disabled');
+                     homeLabel.classList.add('disabled');
+                     if(deskFeeDisplay) deskFeeDisplay.textContent = '';
+                     if(homeFeeDisplay) homeFeeDisplay.textContent = '';
+                   updateTotal();
+              };
+
+
+             // عند تغيير الولاية
+             wilayaSelect.addEventListener('change', async () => {
+                  const wilayaId = wilayaSelect.value;
+                   resetDeliveryOptions(); // Reset everything related to delivery
+
+                 if (!wilayaId) {
+                     return;
+                 }
+
+                 // إظهار التحميل وإخفاء الأخطاء السابقة
+                 communeCenterLoadingEl.classList.remove('hidden');
+                 communeCenterLoadingEl.textContent = 'جاري حساب أسعار الشحن...';
+                 communeCenterErrorEl.classList.add('hidden');
+                  submitBtn.disabled = true; // Disable submit while loading fees
+
+                 try {
+                      // جلب أسعار الشحن أولاً
+                      const feesDataResponse = await fetchYalidineData('fees', { to_wilaya_id: wilayaId });
+                      console.log("Fees Response:", feesDataResponse);
+
+                       // التحقق من وجود بيانات per_commune (هيكلية الاستجابة قد تختلف)
+                       // بناءً على كود PHP، نفترض أن الاستجابة تحتوي على كائن per_commune
+                       const feesData = feesDataResponse?.per_commune;
+
+                      if (feesData && Object.keys(feesData).length > 0) {
+                          // استخراج رسوم أول بلدية كمثال (كما في كود PHP)
+                           // تحتاج إلى التأكد من أن المفاتيح `express_home` و `express_desk` موجودة
+                          const firstCommuneFeesKey = Object.keys(feesData)[0];
+                          const firstCommuneFees = feesData[firstCommuneFeesKey];
+
+                          if (firstCommuneFees) {
+                               deliveryFees.home = firstCommuneFees.express_home ?? null; // Use null if undefined
+                               deliveryFees.desk = firstCommuneFees.express_desk ?? null;
+
+                               // تفعيل خيارات التوصيل بناءً على الأسعار المتاحة
+                                if (deliveryFees.desk !== null && deliveryFees.desk >= 0) {
+                                     officeRadio.disabled = false;
+                                     officeLabel.classList.remove('disabled');
+                                     deskFeeDisplay.textContent = `${deliveryFees.desk.toLocaleString('fr-DZ')} دج`;
+                                } else {
+                                     deskFeeDisplay.textContent = 'غير متاح';
+                                }
+                                if (deliveryFees.home !== null && deliveryFees.home >= 0) {
+                                     homeRadio.disabled = false;
+                                     homeLabel.classList.remove('disabled');
+                                     homeFeeDisplay.textContent = `${deliveryFees.home.toLocaleString('fr-DZ')} دج`;
+                                } else {
+                                     homeFeeDisplay.textContent = 'غير متاح';
+                                }
+
+                                // تحديد الخيار الأرخص (أو المكتب) كافتراضي إذا كان متاحاً
+                                if (deliveryFees.desk !== null && deliveryFees.desk >= 0) {
+                                     officeRadio.checked = true;
+                                     officeRadio.dispatchEvent(new Event('change', { bubbles:true })); // Trigger change event
+                                } else if (deliveryFees.home !== null && deliveryFees.home >= 0) {
+                                     homeRadio.checked = true;
+                                     homeRadio.dispatchEvent(new Event('change', { bubbles:true })); // Trigger change event
+                                } else {
+                                     // No options available
+                                      communeCenterLoadingEl.classList.add('hidden');
+                                      communeCenterErrorEl.textContent = 'الشحن غير متوفر لهذه الولاية.';
+                                      communeCenterErrorEl.classList.remove('hidden');
+                                }
+
+                          } else {
+                              throw new Error("لم يتم العثور على بيانات أسعار الشحن للبلدية الأولى.");
+                          }
+                      } else {
+                           throw new Error("الشحن غير متوفر حالياً لهذه الولاية.");
+                      }
+
+                 } catch (error) {
+                      console.error("Error fetching/processing shipping fees:", error);
+                      resetDeliveryOptions();
+                      communeCenterLoadingEl.classList.add('hidden');
+                      communeCenterErrorEl.textContent = error.message || "خطأ في حساب أسعار الشحن.";
+                      communeCenterErrorEl.classList.remove('hidden');
+                       showToast("خطأ في حساب أسعار الشحن. يرجى المحاولة مرة أخرى أو اختيار ولاية أخرى.", 'error');
+                 }
+             });
+
+             // عند تغيير نوع التوصيل
+             deliveryTypeRadios.forEach(radio => {
+                 radio.addEventListener('change', async () => {
+                     const selectedType = form.querySelector('input[name="delivery_type"]:checked').value;
+                     const wilayaId = wilayaSelect.value;
+                      currentShippingCost = null; // Reset cost until communes/centers are loaded and selected
+                      communeCenterSelect.innerHTML = '<option value="">-- تحميل الخيارات --</option>';
+                      communeCenterSelect.disabled = true;
+                      addressContainer.classList.add('hidden');
+                      checkoutAddressInput.required = false; // Reset address requirement
+                      communeCenterLoadingEl.classList.remove('hidden');
+                      communeCenterLoadingEl.textContent = 'جاري تحميل الخيارات...';
+                      communeCenterErrorEl.classList.add('hidden');
+                      submitBtn.disabled = true; // Disable submit while loading options
+
+                      let options = [];
+                      let errorMsg = null;
+
+                      try {
+                         if (selectedType === 'home') {
+                              communeCenterLabel.textContent = 'البلدية *';
+                              communeCenterSelect.name = 'commune_or_center_name'; // Use appropriate name
+                              addressContainer.classList.remove('hidden');
+                              checkoutAddressInput.required = true;
+                              currentShippingCost = deliveryFees.home; // Set cost directly
+
+                              const communeData = await fetchYalidineData('communes', { wilaya_id: wilayaId });
+                              options = communeData?.data || [];
+                               if (options.length === 0) errorMsg = 'لا توجد بلديات متاحة لهذه الولاية.';
+
+                          } else { // office
+                               communeCenterLabel.textContent = 'مكتب الاستلام *';
+                               communeCenterSelect.name = 'commune_or_center_name'; // Use appropriate name
+                              // Address is not required for office delivery
+                               currentShippingCost = deliveryFees.desk; // Set cost directly
+
+                              const centerData = await fetchYalidineData('centers', { wilaya_id: wilayaId });
+                              options = centerData?.data || [];
+                               if (options.length === 0) errorMsg = 'لا توجد مكاتب استلام متاحة لهذه الولاية.';
+                          }
+
+                          // Populate dropdown
+                          communeCenterSelect.innerHTML = '<option value="">-- اختر --</option>';
+                          if (options.length > 0) {
+                              options.forEach(opt => {
+                                   // For centers, the 'name' is the commune name where the center is located
+                                  communeCenterSelect.innerHTML += `<option value="${opt.name}">${opt.name}</option>`;
+                              });
+                               communeCenterSelect.disabled = false;
+                          } else {
+                               communeCenterSelect.innerHTML = `<option value="">${errorMsg || '-- لا توجد خيارات --'}</option>`;
+                               if (errorMsg) {
+                                    communeCenterErrorEl.textContent = errorMsg;
+                                    communeCenterErrorEl.classList.remove('hidden');
+                               }
+                          }
+
+                     } catch (error) {
+                          console.error(`Error fetching ${selectedType === 'home' ? 'communes' : 'centers'}:`, error);
+                          errorMsg = `خطأ في تحميل قائمة ${selectedType === 'home' ? 'البلديات' : 'المكاتب'}.`;
+                           communeCenterSelect.innerHTML = `<option value="">${errorMsg}</option>`;
+                           communeCenterErrorEl.textContent = errorMsg;
+                           communeCenterErrorEl.classList.remove('hidden');
+                           showToast(errorMsg, 'error');
+                     } finally {
+                          communeCenterLoadingEl.classList.add('hidden');
+                          updateTotal(); // Update total cost (might enable submit button if options loaded)
+                     }
+                 });
+             });
+
+              // Update total when commune/center is selected (ensure shipping cost is applied)
+              communeCenterSelect.addEventListener('change', () => {
+                   updateTotal(); // Just recalculate total and button state
+              });
+
+
+             // عند إرسال الفورم
+              form.addEventListener('submit', async (e) => await handleCheckoutSubmit(e, subTotal)); // Pass subTotal
+         };
+
+         // 11. إرسال الطلب (Checkout Submit) - نسخة محدثة
+         const handleCheckoutSubmit = async (e, subTotal) => {
+             e.preventDefault();
+             const form = e.target;
+             const submitBtn = document.getElementById('submit-order-btn');
+             const submitBtnText = submitBtn.querySelector('.btn-text');
+             const submitBtnLoader = submitBtn.querySelector('.btn-loader');
+
+             // Basic form validation (HTML5 required should handle most)
+             if (!form.checkValidity()) {
+                 showToast('يرجى ملء جميع الحقول المطلوبة بشكل صحيح.', 'error');
+                  // Optionally highlight invalid fields
+                 form.reportValidity(); // Show browser's default validation messages
+                 return;
+             }
+              // Validate delivery type selection
+              const selectedDeliveryType = form.querySelector('input[name="delivery_type"]:checked');
+              if (!selectedDeliveryType) {
+                   showToast('يرجى اختيار طريقة التوصيل.', 'error');
+                   return;
+              }
+               // Validate commune/center selection
+               const communeCenterSelect = document.getElementById('checkout-commune-center');
+               if (!communeCenterSelect.value) {
+                    showToast(`يرجى اختيار ${selectedDeliveryType.value === 'home' ? 'البلدية' : 'مكتب الاستلام'}.`, 'error');
+                    communeCenterSelect.focus();
+                    return;
+               }
+                // Validate address if home delivery
+                const addressInput = document.getElementById('checkout-address');
+                 if (selectedDeliveryType.value === 'home' && !addressInput.value.trim()) {
+                     showToast('يرجى إدخال عنوان التوصيل بالتفصيل.', 'error');
+                     addressInput.focus();
+                     return;
+                 }
+
+
+             submitBtn.disabled = true;
+             submitBtnText.classList.add('hidden');
+             submitBtnLoader.classList.remove('hidden');
+
+              // استرداد السعر النهائي للشحن المحسوب
+              const finalShippingCostText = document.getElementById('shipping-cost').textContent;
+              const finalShippingCostMatch = finalShippingCostText.match(/([\d,]+(?:\.\d+)?)/); // Extract number
+              const finalShippingCost = finalShippingCostMatch ? parseFloat(finalShippingCostMatch[1].replace(',', '.')) : null; // Handle potential locale differences
+
+               if (finalShippingCost === null || finalShippingCost < 0) {
+                   showToast('خطأ في سعر الشحن. يرجى إعادة تحديد الولاية.', 'error');
+                   submitBtn.disabled = false;
+                   submitBtnText.classList.remove('hidden');
+                   submitBtnLoader.classList.add('hidden');
+                   return;
+               }
+
+             // --- محاكاة الطلب وحفظه ---
+             try {
+                 // 1. تحقق من المخزون مرة أخرى
+                 for (const item of state.cart) {
+                     const product = state.products.find(p => p.id == item.product_id);
+                     const variant = product?.variants.find(v => v.id == item.variant_id);
+                     if (!variant || variant.stock_quantity < item.quantity) {
+                         throw new Error(`المخزون لم يعد كافياً للمنتج: ${item.title} (${item.optionsText}). المتبقي: ${variant?.stock_quantity ?? 0}`);
+                     }
+                 }
+
+                 // 2. بناء بيانات الطلب
+                 const wilayaOption = document.querySelector(`#checkout-wilaya option[value="${form.wilaya_id.value}"]`);
+                 const orderData = {
+                     id: Date.now().toString().slice(-8), // ID طلب وهمي
+                     createdAt: new Date().toISOString(),
+                     name: form.name.value,
+                     phone: form.phone.value,
+                     wilaya: wilayaOption ? wilayaOption.dataset.name : `ID: ${form.wilaya_id.value}`, // اسم الولاية
+                     commune: form.commune_or_center_name.value, // اسم البلدية أو المكتب
+                     address: selectedDeliveryType.value === 'home' ? form.address.value : `استلام من مكتب Yalidine (${form.commune_or_center_name.value})`, // عنوان أو ملاحظة المكتب
+                     delivery_type: selectedDeliveryType.value, // 'home' or 'office'
+                     cart: state.cart.map(item => ({ // نسخ بيانات السلة اللازمة
+                         ...item,
+                         selectedOptions: item.optionsText ? item.optionsText.split(' / ').map(opt => ({ value: opt })) : [] // للحفظ
+                     })),
+                     shipping_cost: finalShippingCost,
+                     grand_total: subTotal + finalShippingCost,
+                     status: 'pending',
+                     yalidine_tracking_id: null
+                 };
+
+                 // 3. تقليل المخزون (محاكاة)
+                 for (const item of orderData.cart) {
+                     const productIndex = state.products.findIndex(p => p.id == item.product_id);
+                     if (productIndex > -1) {
+                         const variantIndex = state.products[productIndex].variants.findIndex(v => v.id == item.variant_id);
+                         if (variantIndex > -1) {
+                             state.products[productIndex].variants[variantIndex].stock_quantity -= item.quantity;
+                         }
+                     }
+                 }
+                 db.set('products', state.products); // حفظ المخزون المحدث
+
+                 // 4. حفظ الطلب الجديد
+                 state.orders.push(orderData);
+                 db.set('orders', state.orders);
+
+                 // 5. إفراغ السلة
+                 state.cart = [];
+                 db.set('cart', []);
+                 updateCartBadge();
+
+                 // 6. عرض رسالة النجاح
+                 showModal(`
+                     <div class="p-4 text-center">
+                         <i data-lucide="check-circle" class="w-16 h-16 text-green-500 mx-auto mb-4"></i>
+                         <h3 class="text-2xl font-bold mb-2">تم إرسال طلبك بنجاح!</h3>
+                         <p class="text-gray-600 mb-6">شكراً لثقتكم. سنتصل بكم قريباً لتأكيد الطلب. رقم طلبك هو <strong class="font-bold text-gray-900">#${orderData.id}</strong>.</p>
+                         <button class="modal-close-btn w-full bg-gray-900 text-white py-2 px-4 rounded-md font-medium hover:bg-gray-800 transition-colors">
+                             متابعة التسوق
+                         </button>
+                     </div>
+                 `, 'max-w-md'); // Larger modal for success
+
+                 // 7. إضافة مستمع لإغلاق المودال والعودة للرئيسية
+                 document.querySelector('#modal-container .modal-close-btn').addEventListener('click', () => {
+                     hideModal();
+                     goTo('#/');
+                 });
+
+             } catch (error) {
+                 console.error("Checkout failed:", error);
+                 showToast(error.message || 'حدث خطأ أثناء معالجة الطلب.', 'error');
+                 submitBtn.disabled = false; // Re-enable button on error
+                 submitBtnText.classList.remove('hidden');
+                 submitBtnLoader.classList.add('hidden');
+             }
+         };
+
+
+        // ==========================================
+        // بدء تشغيل التطبيق
+        // ==========================================
+        initializeApp();
+
+    </script>
+
+</body>
+</html>

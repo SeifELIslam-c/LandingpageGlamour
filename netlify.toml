@@ -1,8 +1,5 @@
-[build]
-  functions = "netlify/functions"
-
 [[redirects]]
   from = "/yalidine-api/*"
-  to = "/.netlify/functions/yalidine-proxy?path=:splat"
+  to = "/.netlify/functions/yalidine-proxy" # <-- لا نمرر أي query parameter هنا
   status = 200
   force = true

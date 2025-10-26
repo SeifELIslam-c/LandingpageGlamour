@@ -1,0 +1,8 @@
+[build]
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/yalidine-api/*"
+  to = "/.netlify/functions/yalidine-proxy?path=:splat"
+  status = 200
+  force = true

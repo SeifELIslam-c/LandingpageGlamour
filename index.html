@@ -168,7 +168,7 @@
             <nav class="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
                     <!-- اللوجو -->
-                    <a href="#/" class="text-2xl font-bold text-gray-900">Boutique Glamour</a>
+                    <a href="#/" class="text-2xl font-bold text-gray-900">متجري</a>
 
                     <!-- روابط التنقل -->
                     <div class="flex items-center space-x-6" dir="ltr">
@@ -539,91 +539,97 @@
         const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 ساعة بالميلي ثانية
 
         // 5. الراوتر (Router) لإدارة الصفحات
-        const router = () => {
-            // إخفاء جميع الصفحات
-            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+        // 5. الراوتر (Router) لإدارة الصفحات
+      const router = () => {
+          // إخفاء جميع الصفحات
+          document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
 
-            // التحقق من حالة تسجيل دخول الأدمن
-            const admin = isAdmin();
-            document.getElementById('customer-header').classList.toggle('hidden', admin);
-            document.getElementById('admin-header').classList.toggle('hidden', !admin);
+          // التحقق من حالة تسجيل دخول الأدمن
+          const admin = isAdmin();
+          document.getElementById('customer-header').classList.toggle('hidden', admin);
+          document.getElementById('admin-header').classList.toggle('hidden', !admin);
 
-            const hash = window.location.hash || '#/';
-            let pageId = '';
-            let params = null;
+          const hash = window.location.hash || '#/';
+          let pageId = '';
+          let params = null;
 
-            // --- توجيه العميل ---
-            if (hash === '#/') {
-                pageId = 'page-shop';
-                renderShopPage();
-            } else if (hash.startsWith('#/product/')) {
-                pageId = 'page-product-detail';
-                params = hash.split('/')[2];
-                renderProductDetailPage(params);
-            } else if (hash === '#/cart') {
-                pageId = 'page-cart';
-                renderCartPage();
-            } else if (hash === '#/checkout') {
-                pageId = 'page-checkout';
-                renderCheckoutPage();
-            }
-            // --- توجيه الأدمن ---
-            else if (hash === '#/admin') {
-                pageId = 'page-admin-login';
-                if (admin) { goTo('#/admin/dashboard'); return; } // إعادة توجيه إذا كان مسجلاً
-            } else if (hash === '#/admin/dashboard') {
-                pageId = 'page-admin-dashboard';
-                if (!admin) { goTo('#/admin'); return; }
-            } else if (hash === '#/admin/products') {
-                pageId = 'page-admin-products';
-                if (!admin) { goTo('#/admin'); return; }
-                renderAdminProductList();
-            } else if (hash === '#/admin/products/new') {
-                pageId = 'page-admin-product-form';
-                if (!admin) { goTo('#/admin'); return; }
-                renderProductForm(); // وضع الإضافة
-            } else if (hash.startsWith('#/admin/products/edit/')) {
-                 pageId = 'page-admin-product-form';
-                 params = hash.split('/')[4];
-                 if (!admin) { goTo('#/admin'); return; }
-                 const productToEdit = state.products.find(p => p.id == params);
-                 renderProductForm(productToEdit); // وضع التعديل
-            } else if (hash === '#/admin/orders') {
-                pageId = 'page-admin-orders';
-                if (!admin) { goTo('#/admin'); return; }
-                renderAdminOrderList();
-            } else if (hash.startsWith('#/admin/orders/')) {
-                pageId = 'page-admin-order-detail';
-                params = hash.split('/')[3];
-                if (!admin) { goTo('#/admin'); return; }
-                renderOrderDetailPage(params);
-            } else if (hash === '#/admin/settings') {
-                pageId = 'page-admin-settings';
-                if (!admin) { goTo('#/admin'); return; }
-                renderSettingsPage();
-            } else {
-                 // إذا لم يتطابق أي مسار، انتقل للمتجر
-                 goTo('#/');
-                 return; // أوقف التنفيذ هنا لتجنب إظهار صفحة خاطئة
-            }
+          // --- توجيه العميل ---
+          if (hash === '#/') {
+              pageId = 'page-shop';
+              renderShopPage();
+          } else if (hash.startsWith('#/product/')) {
+              pageId = 'page-product-detail';
+              params = hash.split('/')[2];
+              renderProductDetailPage(params);
+          } else if (hash === '#/cart') {
+              pageId = 'page-cart';
+              renderCartPage();
+          } else if (hash === '#/checkout') {
+              pageId = 'page-checkout';
+              renderCheckoutPage();
+          }
+          // --- توجيه الأدمن ---
+          else if (hash === '#/admin') {
+              pageId = 'page-admin-login';
+              if (admin) { goTo('#/admin/dashboard'); return; } // إعادة توجيه إذا كان مسجلاً
+              // ربط مستمع فورم تسجيل الدخول عند عرض الصفحة
+              // استخدم setTimeout لضمان أن DOM الصفحة قد تم تحديثه قبل إضافة المستمع
+              setTimeout(() => {
+                  document.getElementById('admin-login-form')?.addEventListener('submit', handleAdminLogin);
+              }, 0); // تأخير بسيط جداً
+          } else if (hash === '#/admin/dashboard') {
+              pageId = 'page-admin-dashboard';
+              if (!admin) { goTo('#/admin'); return; }
+          } else if (hash === '#/admin/products') {
+              pageId = 'page-admin-products';
+              if (!admin) { goTo('#/admin'); return; }
+              renderAdminProductList();
+          } else if (hash === '#/admin/products/new') {
+              pageId = 'page-admin-product-form';
+              if (!admin) { goTo('#/admin'); return; }
+              renderProductForm(); // وضع الإضافة
+          } else if (hash.startsWith('#/admin/products/edit/')) {
+               pageId = 'page-admin-product-form';
+               params = hash.split('/')[4];
+               if (!admin) { goTo('#/admin'); return; }
+               const productToEdit = state.products.find(p => p.id == params);
+               renderProductForm(productToEdit); // وضع التعديل
+          } else if (hash === '#/admin/orders') {
+              pageId = 'page-admin-orders';
+              if (!admin) { goTo('#/admin'); return; }
+              renderAdminOrderList();
+          } else if (hash.startsWith('#/admin/orders/')) {
+              pageId = 'page-admin-order-detail';
+              params = hash.split('/')[3];
+              if (!admin) { goTo('#/admin'); return; }
+              renderOrderDetailPage(params);
+          } else if (hash === '#/admin/settings') {
+              pageId = 'page-admin-settings';
+              if (!admin) { goTo('#/admin'); return; }
+              renderSettingsPage();
+          } else {
+               // إذا لم يتطابق أي مسار، انتقل للمتجر
+               goTo('#/');
+               return; // أوقف التنفيذ هنا لتجنب إظهار صفحة خاطئة
+          }
 
-            // إظهار الصفحة المحددة
-            const activePage = document.getElementById(pageId);
-            if (activePage) {
-                activePage.classList.add('active');
-            } else {
-                // صفحة خطأ 404 أو العودة للرئيسية (احتياطي)
-                console.error("Page not found for hash:", hash);
-                document.getElementById('page-shop').classList.add('active');
-                renderShopPage();
-            }
+          // إظهار الصفحة المحددة
+          const activePage = document.getElementById(pageId);
+          if (activePage) {
+              activePage.classList.add('active');
+          } else {
+              // صفحة خطأ 404 أو العودة للرئيسية (احتياطي)
+              console.error("Page not found for hash:", hash);
+              document.getElementById('page-shop').classList.add('active');
+              renderShopPage();
+          }
 
-            // إعادة الأيقونات والانتقال للأعلى
-            if (typeof lucide !== 'undefined') {
-    lucide.createIcons();
-}
-            window.scrollTo(0, 0);
-        };
+          // إعادة الأيقونات والانتقال للأعلى
+          if (typeof lucide !== 'undefined') {
+              lucide.createIcons();
+          }
+          window.scrollTo(0, 0);
+      };
 
         // 6. وظائف مساعدة (Helpers)
         const goTo = (hash) => window.location.hash = hash;

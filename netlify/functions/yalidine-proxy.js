@@ -1,5 +1,4 @@
 // netlify/functions/yalidine-proxy.js
-// هذا الكود يعمل على خادم Netlify وليس في المتصفح
 
 exports.handler = async (event, context) => {
   
@@ -65,3 +64,4 @@ exports.handler = async (event, context) => {
     };
   }
 };
+
